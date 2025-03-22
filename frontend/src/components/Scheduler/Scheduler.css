@@ -1,65 +1,7 @@
-.scheduler {
+.scheduler-container {
     padding: 20px;
     background-color: #fff;
     border: 1px solid #ddd;
     border-radius: 8px;
     box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  }
-  
-  .scheduler h2 {
-    margin-top: 0;
-  }
-  
-  .calendar-grid {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    gap: 10px;
-  }
-  
-  .day-header {
-    text-align: center;
-    font-weight: bold;
-    padding: 10px;
-    background-color: #f8f9fa;
-    border-radius: 4px;
-  }
-  
-  .day-cell {
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    cursor: pointer;
-    text-align: center;
-  }
-  
-  .day-cell.selected {
-    background-color: #007bff;
-    color: #fff;
-  }
-  
-  .empty-cell {
-    background-color: transparent;
-  }
-  
-  .events {
-    margin-top: 5px;
-  }
-  
-  .event {
-    background-color: #f1f1f1;
-    padding: 2px 5px;
-    border-radius: 4px;
-    font-size: 12px;
-    margin-top: 2px;
-  }
-  
-  .add-event-form {
-    margin-top: 20px;
-  }
-  
-  .add-event-form input {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ddd;
-    border-radius: 4px;
   }
