@@ -13,6 +13,7 @@
     "@syncfusion/ej2-react-schedule": "^28.2.11",
     "@tailwindcss/vite": "^4.0.15",
     "date-fns": "^4.1.0",
+    "next-auth": "^4.24.11",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.4.0",
