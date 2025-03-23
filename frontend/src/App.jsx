@@ -251,21 +251,8 @@ const App = () => {
           />
         </Box>
 
-        {/* AI Chat Button - Fixed Position */}
-        <Box
-          sx={{
-            position: "fixed",
-            bottom: 24,
-            right: 24,
-            zIndex: 1000,
-          }}
-        >
-          <ChatHead
-            open={chatOpen}
-            onClose={() => setChatOpen(false)}
-            onOpen={() => setChatOpen(true)}
-          />
-        </Box>
+        {/* Only ChatBot component, no additional Fab button */}
+        <ChatBot />
 
         {/* Color Picker Modal */}
         <ColorPicker
@@ -299,9 +286,6 @@ const App = () => {
           <MenuItem onClick={handleClose}>Settings</MenuItem>
           <MenuItem onClick={handleClose}>Logout</MenuItem>
         </Menu>
-
-        {/* Add ChatBot */}
-        <ChatBot />
       </Box>
     </ThemeProvider>
   );
