@@ -19,6 +19,8 @@ const MODULES = [
 const SlotForm = ({ mode = 'create', onSubmit }) => {
   const location = useLocation();
   const editData = location.state?.slotData;
+  const editMode = location.state?.editMode;
+  const slotIndex = location.state?.slotIndex;
 
   const [formData, setFormData] = useState({
     examiner: {
@@ -48,12 +50,7 @@ const SlotForm = ({ mode = 'create', onSubmit }) => {
   // Initialize form with edit data if available
   useEffect(() => {
     if (editData) {
-      const { examiner, module, session, sessionIndex } = editData;
-      setFormData({
-        examiner,
-        module,
-        sessions: [session] // When editing, we only show the selected session
-      });
+      setFormData(editData);
     }
   }, [editData]);
 
@@ -251,10 +248,10 @@ const SlotForm = ({ mode = 'create', onSubmit }) => {
           }
         }
         
-        if (editData) {
+        if (editMode) {
           // Update existing slot
           const updatedSlots = existingSlots.map((slot, index) => 
-            index === editData.sessionIndex ? formData : slot
+            index === slotIndex ? formData : slot
           );
           localStorage.setItem('slots', JSON.stringify(updatedSlots));
           toast.success('Slot updated successfully');
@@ -687,16 +684,15 @@ const SlotForm = ({ mode = 'create', onSubmit }) => {
         <button
           type="button"
           onClick={() => window.history.back()}
-          className="bg-gray-200 text-red-300 border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-300 transition-colors"
-
+          className="bg-white text-red-300 border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="bg-black text-green-300 px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors font-medium"
+          className="bg-black text-white px-6 py-2 rounded-lg hover:bg-gray-800 transition-colors font-medium"
         >
-          {editData ? 'Update Slot' : 'Create Slots'}
+          {editMode ? 'Update Slot' : 'Create Slots'}
         </button>
       </div>
     </form>

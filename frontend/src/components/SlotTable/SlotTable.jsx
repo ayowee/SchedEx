@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Switch } from '@headlessui/react';
+import { Switch, FormControlLabel } from '@mui/material';
 import { toast } from 'react-hot-toast';
 
 const INITIAL_SLOTS = [
@@ -78,12 +78,23 @@ const SlotTable = () => {
   };
 
   // Handle delete
-  const handleDelete = (slotIndex) => {
-    if (window.confirm('Are you sure you want to delete this slot?')) {
+  const handleDelete = (slotIndex, sessionIndex) => {
+    const slot = slots[slotIndex];
+    const session = slot.sessions[sessionIndex];
+    
+    if (window.confirm(`Are you sure you want to delete the session "${session.name}" for ${slot.examiner.name}?`)) {
       setSlots(prevSlots => {
-        const newSlots = prevSlots.filter((_, index) => index !== slotIndex);
+        const newSlots = [...prevSlots];
+        // Only remove the specific session from the slot's sessions array
+        newSlots[slotIndex].sessions = newSlots[slotIndex].sessions.filter((_, index) => index !== sessionIndex);
+        
+        // If this was the last session in the slot, remove the entire slot
+        if (newSlots[slotIndex].sessions.length === 0) {
+          newSlots.splice(slotIndex, 1);
+        }
+        
         localStorage.setItem('slots', JSON.stringify(newSlots));
-        toast.success('Slot deleted successfully');
+        toast.success('Session deleted successfully');
         return newSlots;
       });
     }
@@ -92,7 +103,13 @@ const SlotTable = () => {
   // Handle edit
   const handleEdit = (slotIndex) => {
     const slotData = slots[slotIndex];
-    navigate('/create-slot', { state: { slotData, slotIndex } });
+    navigate('/create-slot', { 
+      state: { 
+        slotData,
+        slotIndex,
+        editMode: true
+      } 
+    });
   };
 
   // Filter slots based on search query
@@ -182,30 +199,34 @@ const SlotTable = () => {
                     <div className="text-sm text-gray-500">{session.deliveryMethod}</div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <Switch
-                      checked={session.isActive}
-                      onChange={() => handleToggle(slotIndex, sessionIndex)}
-                      className={`${
-                        session.isActive ? 'bg-green-600' : 'bg-gray-200'
-                      } relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2`}
-                    >
-                      <span
-                        className={`${
-                          session.isActive ? 'translate-x-6' : 'translate-x-1'
-                        } inline-block h-4 w-4 transform rounded-full bg-white transition-transform`}
-                      />
-                    </Switch>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={session.isActive}
+                          onChange={() => handleToggle(slotIndex, sessionIndex)}
+                          color="success"
+                          size="small"
+                        />
+                      }
+                      label={session.isActive ? 'Active' : 'Inactive'}
+                      sx={{
+                        '& .MuiFormControlLabel-label': {
+                          fontSize: '0.875rem',
+                          color: session.isActive ? '#16a34a' : '#6b7280'
+                        }
+                      }}
+                    />
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                     <button
                       onClick={() => handleEdit(slotIndex)}
-                      className="text-indigo-600 hover:text-indigo-900 mr-4"
+                      className="text-indigo-300 hover:text-blue-300 mr-4"
                     >
                       Edit
                     </button>
                     <button
-                      onClick={() => handleDelete(slotIndex)}
-                      className="text-red-600 hover:text-red-900"
+                      onClick={() => handleDelete(slotIndex, sessionIndex)}
+                      className="text-red-300 hover:text-red-300"
                     >
                       Delete
                     </button>
