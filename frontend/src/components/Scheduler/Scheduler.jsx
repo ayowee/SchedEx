@@ -1,9 +1,21 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { Scheduler } from "@aldabil/react-scheduler";
 import "./Scheduler.css";
-import { Box, Typography, Button, Stack } from "@mui/material";
+import {
+  Box,
+  Typography,
+  Button,
+  Stack,
+  TextField,
+  InputAdornment,
+  MenuItem,
+} from "@mui/material";
 import { dummyEvents } from "../../data/dummyEvents";
-import { ListAlt as ListAltIcon } from "@mui/icons-material";
+import {
+  ListAlt as ListAltIcon,
+  LocationOn as LocationIcon,
+  Palette as PaletteIcon,
+} from "@mui/icons-material";
 import AgendaDialog from "../AgendaDialog/AgendaDialog";
 import PropTypes from "prop-types";
 
@@ -19,49 +31,119 @@ const CustomScheduler = ({
 }) => {
   const [agendaOpen, setAgendaOpen] = useState(false);
 
-  // Handle event creation
+  // Predefined color options
+  const colorOptions = [
+    { value: "#2563eb", label: "Blue" },
+    { value: "#dc2626", label: "Red" },
+    { value: "#16a34a", label: "Green" },
+    { value: "#9333ea", label: "Purple" },
+    { value: "#ea580c", label: "Orange" },
+    { value: "#db2777", label: "Pink" },
+  ];
+
   const handleConfirm = async (event, action) => {
-    if (action === "create") {
-      const newEvent = {
-        ...event,
-        color: selectedColor,
-      };
-      onEventAdd(newEvent);
-      return newEvent;
+    try {
+      if (action === "create") {
+        const newEvent = {
+          ...event,
+          event_id: Date.now(),
+          color: event.color || selectedColor,
+        };
+        onEventAdd(newEvent);
+        return newEvent;
+      }
+
+      if (action === "edit") {
+        onEventUpdate(event);
+        return event;
+      }
+    } catch (error) {
+      console.error(error);
     }
-    if (action === "edit") {
-      onEventUpdate(event);
-      return event;
-    }
-    return event;
   };
 
-  // Handle event deletion
   const handleDelete = async (eventId) => {
     onEventDelete(eventId);
     return eventId;
   };
 
-  // Custom fields for event form
-  const customFields = [
+  const fields = [
+    {
+      name: "title",
+      type: "input",
+      config: {
+        label: "Event Title",
+        required: true,
+        variant: "outlined",
+        fullWidth: true,
+        sx: { mb: 2 },
+      },
+    },
     {
       name: "description",
-      type: "textarea",
-      default: "",
+      type: "input",
       config: {
         label: "Description",
         multiline: true,
         rows: 4,
+        variant: "outlined",
+        fullWidth: true,
+        sx: { mb: 2 },
       },
     },
     {
       name: "location",
       type: "input",
-      default: "",
       config: {
         label: "Location",
-        required: false,
+        variant: "outlined",
+        fullWidth: true,
+        InputProps: {
+          startAdornment: (
+            <InputAdornment position="start">
+              <LocationIcon />
+            </InputAdornment>
+          ),
+        },
+        sx: { mb: 2 },
       },
+    },
+    {
+      name: "color",
+      type: "select",
+      default: selectedColor,
+      config: {
+        label: "Color",
+        variant: "outlined",
+        fullWidth: true,
+        select: true,
+        InputProps: {
+          startAdornment: (
+            <InputAdornment position="start">
+              <PaletteIcon />
+            </InputAdornment>
+          ),
+        },
+        sx: { mb: 2 },
+      },
+      options: colorOptions.map((color) => ({
+        id: color.value,
+        text: color.label,
+        value: color.value,
+        render: () => (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Box
+              sx={{
+                width: 20,
+                height: 20,
+                borderRadius: "50%",
+                backgroundColor: color.value,
+              }}
+            />
+            <Typography>{color.label}</Typography>
+          </Box>
+        ),
+      })),
     },
   ];
 
@@ -115,32 +197,30 @@ const CustomScheduler = ({
         events={events}
         onConfirm={handleConfirm}
         onDelete={handleDelete}
-        customFields={customFields}
-        viewerExtraComponent={(fields, event) => (
-          <Box sx={{ p: 2 }}>
-            {event.description && (
-              <Typography variant="body2" sx={{ mb: 1 }}>
-                {event.description}
-              </Typography>
-            )}
-            {event.location && (
-              <Typography variant="body2" color="textSecondary">
-                📍 {event.location}
-              </Typography>
-            )}
-          </Box>
-        )}
-        fields={[
-          {
-            name: "color",
-            type: "hidden",
-            default: selectedColor,
-          },
-        ]}
         view={currentView.toLowerCase()}
         onViewChange={(newView) => onViewChange(newView)}
-        navigation={{
-          hidden: false,
+        fields={fields}
+        translations={{
+          navigation: {
+            month: "Month",
+            week: "Week",
+            day: "Day",
+            today: "Today",
+          },
+          form: {
+            addTitle: "Add Event",
+            editTitle: "Edit Event",
+            confirm: "Confirm",
+            delete: "Delete",
+            cancel: "Cancel",
+          },
+          event: {
+            title: "Title",
+            start: "Start",
+            end: "End",
+            description: "Description",
+            location: "Location",
+          },
         }}
         week={{
           weekDays: [0, 1, 2, 3, 4, 5, 6],
@@ -190,29 +270,6 @@ const CustomScheduler = ({
             weekday: "long",
           },
           showTodayButton: false,
-        }}
-        translations={{
-          navigation: {
-            month: "Month",
-            week: "Week",
-            day: "Day",
-            today: "Today",
-          },
-          form: {
-            addTitle: "Add Event",
-            editTitle: "Edit Event",
-            confirm: "Confirm",
-            delete: "Delete",
-            cancel: "Cancel",
-          },
-          agenda: {
-            time: "Time",
-            event: "Event",
-          },
-          time: {
-            am: "AM",
-            pm: "PM",
-          },
         }}
         hourFormat="12"
         draggable={true}
