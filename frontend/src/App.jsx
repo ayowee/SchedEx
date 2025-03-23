@@ -31,6 +31,7 @@ import ChatHead from "./components/ChatHead/ChatHead";
 import ColorPicker from "./components/ColorPicker/ColorPicker";
 import AgendaDialog from "./components/AgendaDialog/AgendaDialog";
 import ChatBot from "./components/ChatBot/ChatBot";
+import SearchBar from "./components/Search/SearchBar";
 
 const theme = createTheme({
   components: {
@@ -126,17 +127,30 @@ const App = () => {
   };
 
   // Event handlers
-  const handleEventAdd = useCallback((newEvent) => {
-    setEvents((prev) => [...prev, { ...newEvent, event_id: Date.now() }]);
-  }, []);
+  const handleEventAdd = (newEvent) => {
+    setEvents((prev) => [
+      ...prev,
+      {
+        ...newEvent,
+        color: newEvent.color || selectedColor,
+        location: newEvent.location || "",
+      },
+    ]);
+  };
 
-  const handleEventUpdate = useCallback((updatedEvent) => {
+  const handleEventUpdate = (updatedEvent) => {
     setEvents((prev) =>
       prev.map((event) =>
-        event.event_id === updatedEvent.event_id ? updatedEvent : event
+        event.event_id === updatedEvent.event_id
+          ? {
+              ...updatedEvent,
+              color: updatedEvent.color || event.color,
+              location: updatedEvent.location || event.location,
+            }
+          : event
       )
     );
-  }, []);
+  };
 
   const handleEventDelete = useCallback((eventId) => {
     setEvents((prev) => prev.filter((event) => event.event_id !== eventId));
@@ -190,17 +204,13 @@ const App = () => {
               </Button>
             </Stack>
 
+            {/* Center - Search Bar */}
+            <Box sx={{ flex: 1, mx: 4, maxWidth: 500 }}>
+              <SearchBar events={events} />
+            </Box>
+
             {/* Right side controls */}
             <Stack direction="row" spacing={2} alignItems="center">
-              <div className="flex items-center bg-gray-100 rounded-md px-3 py-1">
-                <SearchIcon className="text-gray-500" />
-                <input
-                  className="bg-transparent border-none outline-none ml-2 w-48"
-                  placeholder="Search events..."
-                />
-              </div>
-
-              {/* Current View Display */}
               <Typography
                 variant="button"
                 sx={{
