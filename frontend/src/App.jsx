@@ -21,12 +21,21 @@ function App() {
                     <div className="ml-10 flex items-baseline space-x-4">
                       <Link
                         to="/"
+                        className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium flex items-center"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" viewBox="0 0 20 20" fill="currentColor">
+                          <path d="M10.707 2.293a1 1 0 00-1.414 0l-7 7a1 1 0 001.414 1.414L4 10.414V17a1 1 0 001 1h2a1 1 0 001-1v-2a1 1 0 011-1h2a1 1 0 011 1v2a1 1 0 001 1h2a1 1 0 001-1v-6.586l.293.293a1 1 0 001.414-1.414l-7-7z" />
+                        </svg>
+                        Home
+                      </Link>
+                      <Link
+                        to="/create-slot"
                         className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
                       >
                         Manage Slots
                       </Link>
                       <Link
-                        to="/add-slots"
+                        to="/managing-slot"
                         className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
                       >
                         Add Slots
@@ -41,7 +50,7 @@ function App() {
           {/* Main Content */}
           <main className="flex-1">
             <Routes>
-              <Route path="/slots" element={<SlotManagingPage />} />
+              <Route path="/managing-slot" element={<SlotManagingPage />} />
               <Route path="/create-slot" element={<SlotAddingPage />} />
             </Routes>
           </main>

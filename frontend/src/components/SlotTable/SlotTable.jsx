@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Switch, FormControlLabel } from '@mui/material';
+import { Switch, FormControlLabel, TextField, MenuItem, Button, Box } from '@mui/material';
 import { toast } from 'react-hot-toast';
 
 const INITIAL_SLOTS = [
@@ -39,6 +39,68 @@ const INITIAL_SLOTS = [
         isActive: false
       }
     ]
+  },
+  {
+    examiner: {
+      id: 'EX002',
+      name: 'Jane Smith',
+      email: 'jane.smith@example.com',
+      mobile: '0761234567'
+    },
+    module: {
+      moduleId: 'MOD002',
+      name: 'Database Management',
+      specialization: 'SE',
+      semester: '2'
+    },
+    sessions: [
+      {
+        name: 'Database Design Review',
+        type: 'review',
+        startTime: '10:00',
+        endTime: '11:00',
+        location: 'Room 201',
+        deliveryMethod: 'offline',
+        date: '2024-03-22',
+        isActive: true
+      }
+    ]
+  },
+  {
+    examiner: {
+      id: 'EX003',
+      name: 'Robert Wilson',
+      email: 'robert.wilson@example.com',
+      mobile: '0751234567'
+    },
+    module: {
+      moduleId: 'MOD003',
+      name: 'Web Development',
+      specialization: 'SE',
+      semester: '3'
+    },
+    sessions: [
+      {
+        name: 'Frontend Development Demo',
+        type: 'demo',
+        startTime: '11:00',
+        endTime: '12:00',
+        location: 'Room 301',
+        deliveryMethod: 'online',
+        date: '2024-03-23',
+        isActive: true
+      },
+      {
+        name: 'Backend Integration Review',
+        type: 'review',
+        startTime: '14:00',
+        endTime: '15:00',
+        location: 'Room 302',
+        deliveryMethod: 'offline',
+        date: '2024-03-24',
+        isActive: false
+      }
+    ]
   }
 ];
 
@@ -46,6 +108,13 @@ const SlotTable = () => {
   const navigate = useNavigate();
   const [slots, setSlots] = useState(INITIAL_SLOTS);
   const [searchQuery, setSearchQuery] = useState('');
+  const [reportFilters, setReportFilters] = useState({
+    startDate: '',
+    endDate: '',
+    sessionType: '',
+    moduleId: ''
+  });
+  const [reportData, setReportData] = useState(null);
 
   // Load data from localStorage on component mount
   useEffect(() => {
@@ -85,10 +154,10 @@ const SlotTable = () => {
     if (window.confirm(`Are you sure you want to delete the session "${session.name}" for ${slot.examiner.name}?`)) {
       setSlots(prevSlots => {
         const newSlots = [...prevSlots];
-        // Only remove the specific session from the slot's sessions array
+        // Remove only the specific session
         newSlots[slotIndex].sessions = newSlots[slotIndex].sessions.filter((_, index) => index !== sessionIndex);
         
-        // If this was the last session in the slot, remove the entire slot
+        // If no sessions left in this slot, remove the entire slot
         if (newSlots[slotIndex].sessions.length === 0) {
           newSlots.splice(slotIndex, 1);
         }
@@ -123,10 +192,75 @@ const SlotTable = () => {
     );
   });
 
+  // Get unique session types
+  const sessionTypes = [...new Set(slots.flatMap(slot => 
+    slot.sessions.map(session => session.type)
+  ))];
+
+  // Get unique modules
+  const modules = [...new Set(slots.map(slot => ({
+    id: slot.module.moduleId,
+    name: slot.module.name
+  })))];
+
+  // Generate report
+  const generateReport = () => {
+    let filteredData = [...slots];
+
+    // Apply date range filter
+    if (reportFilters.startDate && reportFilters.endDate) {
+      filteredData = filteredData.map(slot => ({
+        ...slot,
+        sessions: slot.sessions.filter(session => 
+          session.date >= reportFilters.startDate && 
+          session.date <= reportFilters.endDate
+        )
+      })).filter(slot => slot.sessions.length > 0);
+    }
+
+    // Apply session type filter
+    if (reportFilters.sessionType) {
+      filteredData = filteredData.map(slot => ({
+        ...slot,
+        sessions: slot.sessions.filter(session => 
+          session.type === reportFilters.sessionType
+        )
+      })).filter(slot => slot.sessions.length > 0);
+    }
+
+    // Apply module filter
+    if (reportFilters.moduleId) {
+      filteredData = filteredData.filter(slot => 
+        slot.module.moduleId === reportFilters.moduleId
+      );
+    }
+
+    // Calculate report statistics
+    const statistics = {
+      totalSessions: filteredData.reduce((acc, slot) => acc + slot.sessions.length, 0),
+      activeSessions: filteredData.reduce((acc, slot) => 
+        acc + slot.sessions.filter(s => s.isActive).length, 0
+      ),
+      onlineSessions: filteredData.reduce((acc, slot) => 
+        acc + slot.sessions.filter(s => s.deliveryMethod === 'online').length, 0
+      ),
+      offlineSessions: filteredData.reduce((acc, slot) => 
+        acc + slot.sessions.filter(s => s.deliveryMethod === 'offline').length, 0
+      )
+    };
+
+    setReportData({
+      filteredSlots: filteredData,
+      statistics
+    });
+
+    toast.success('Report generated successfully');
+  };
+
   return (
     <div className="container mx-auto px-4 py-8">
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-black">Slot Management</h1>
+        <h3 className="text-2xl font-bold text-black">Slot Management</h3>
         <button
           onClick={() => navigate('/create-slot')}
           className="bg-black text-green-300 px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
@@ -142,7 +276,7 @@ const SlotTable = () => {
           placeholder="Search slots..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-black placeholder-gray-500"
         />
       </div>
 
@@ -236,6 +370,135 @@ const SlotTable = () => {
             ))}
           </tbody>
         </table>
+      </div>
+
+      {/* Report Generation Section */}
+      <div className="mt-8 bg-white p-6 rounded-lg shadow-md">
+        <h2 className="text-xl font-bold text-black mb-4">Generate Reports</h2>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <TextField
+            label="Start Date"
+            type="date"
+            value={reportFilters.startDate}
+            onChange={(e) => setReportFilters(prev => ({ ...prev, startDate: e.target.value }))}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+          />
+          <TextField
+            label="End Date"
+            type="date"
+            value={reportFilters.endDate}
+            onChange={(e) => setReportFilters(prev => ({ ...prev, endDate: e.target.value }))}
+            InputLabelProps={{ shrink: true }}
+            fullWidth
+          />
+          <TextField
+            select
+            label="Session Type"
+            value={reportFilters.sessionType}
+            onChange={(e) => setReportFilters(prev => ({ ...prev, sessionType: e.target.value }))}
+            fullWidth
+          >
+            <MenuItem value="">All Types</MenuItem>
+            {sessionTypes.map(type => (
+              <MenuItem key={type} value={type}>{type}</MenuItem>
+            ))}
+          </TextField>
+          <TextField
+            select
+            label="Module"
+            value={reportFilters.moduleId}
+            onChange={(e) => setReportFilters(prev => ({ ...prev, moduleId: e.target.value }))}
+            fullWidth
+          >
+            <MenuItem value="">All Modules</MenuItem>
+            {modules.map(module => (
+              <MenuItem key={module.id} value={module.id}>{module.name}</MenuItem>
+            ))}
+          </TextField>
+        </div>
+
+        <Button
+          variant="contained"
+          color="primary"
+          onClick={generateReport}
+          className="bg-black text-white hover:bg-gray-800"
+        >
+          Generate Report
+        </Button>
+
+        {/* Report Results */}
+        {reportData && (
+          <div className="mt-6">
+            <h3 className="text-lg font-semibold text-black mb-4">Report Statistics</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">Total Sessions</p>
+                <p className="text-2xl font-bold text-black">{reportData.statistics.totalSessions}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">Active Sessions</p>
+                <p className="text-2xl font-bold text-black">{reportData.statistics.activeSessions}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">Online Sessions</p>
+                <p className="text-2xl font-bold text-black">{reportData.statistics.onlineSessions}</p>
+              </div>
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <p className="text-sm text-gray-600">Offline Sessions</p>
+                <p className="text-2xl font-bold text-black">{reportData.statistics.offlineSessions}</p>
+              </div>
+            </div>
+
+            {/* Filtered Sessions Table */}
+            <div className="mt-6">
+              <h3 className="text-lg font-semibold text-black mb-4">Filtered Sessions</h3>
+              <div className="overflow-x-auto">
+                <table className="min-w-full bg-white border border-gray-300">
+                  <thead>
+                    <tr className="bg-gray-100">
+                      <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Date
+                      </th>
+                      <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Session
+                      </th>
+                      <th className="px-6 py-3 border-b text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Status
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-300">
+                    {reportData.filteredSlots.map((slot, slotIndex) => (
+                      slot.sessions.map((session, sessionIndex) => (
+                        <tr key={`${slotIndex}-${sessionIndex}`} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{session.date}</div>
+                            <div className="text-sm text-gray-500">{session.startTime} - {session.endTime}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <div className="text-sm text-gray-900">{session.name}</div>
+                            <div className="text-sm text-gray-500">{session.type}</div>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap">
+                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                              session.isActive 
+                                ? 'bg-green-100 text-green-800' 
+                                : 'bg-red-100 text-red-800'
+                            }`}>
+                              {session.isActive ? 'Active' : 'Inactive'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

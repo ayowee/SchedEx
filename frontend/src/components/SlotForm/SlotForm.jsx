@@ -219,6 +219,92 @@ const SlotForm = ({ mode = 'create', onSubmit }) => {
     }));
   };
 
+  const addSlot = () => {
+    // Validate examiner details
+    const examinerValid = formData.examiner.id && 
+                         formData.examiner.name && 
+                         formData.examiner.email &&
+                         formData.examiner.mobile;
+    if (!examinerValid) {
+      toast.error('Please complete all examiner details (ID, Name, Email, Mobile) before adding slots');
+      return;
+    }
+
+    // Validate module details
+    const moduleValid = formData.module.moduleId && 
+                       formData.module.name && 
+                       formData.module.specialization && 
+                       formData.module.semester;
+    if (!moduleValid) {
+      toast.error('Please complete all module details (ID, Name, Specialization, Semester) before adding slots');
+      return;
+    }
+
+    // Validate all existing sessions
+    const areSessionsValid = formData.sessions.every(session => 
+      session.name && 
+      session.type && 
+      session.startTime && 
+      session.endTime && 
+      session.location && 
+      session.deliveryMethod && 
+      session.date
+    );
+
+    if (!areSessionsValid) {
+      toast.error('Please fill all fields in existing slots before adding new ones');
+      return;
+    }
+
+    // Check for time conflicts in existing sessions
+    const hasTimeConflict = formData.sessions.some((session, index) => {
+      const sessionStart = new Date(`${session.date}T${session.startTime}`);
+      const sessionEnd = new Date(`${session.date}T${session.endTime}`);
+      
+      return formData.sessions.some((otherSession, otherIndex) => {
+        if (index === otherIndex) return false;
+        if (session.date !== otherSession.date) return false;
+        
+        const otherStart = new Date(`${otherSession.date}T${otherSession.startTime}`);
+        const otherEnd = new Date(`${otherSession.date}T${otherSession.endTime}`);
+        
+        return (sessionStart < otherEnd && sessionEnd > otherStart);
+      });
+    });
+
+    if (hasTimeConflict) {
+      toast.error('Time conflicts detected between sessions. Please check the schedule.');
+      return;
+    }
+
+    // Validate time format and logic
+    const hasInvalidTime = formData.sessions.some(session => {
+      const start = new Date(`${session.date}T${session.startTime}`);
+      const end = new Date(`${session.date}T${session.endTime}`);
+      return start >= end;
+    });
+
+    if (hasInvalidTime) {
+      toast.error('End time must be after start time for all sessions');
+      return;
+    }
+
+    // Add new slot with inherited values from first session
+    setFormData(prev => ({
+      ...prev,
+      sessions: [...prev.sessions, {
+        name: '',
+        type: prev.sessions[0].type,
+        deliveryMethod: prev.sessions[0].deliveryMethod,
+        startTime: '',
+        endTime: '',
+        location: '',
+        date: '',
+        isActive: true
+      }]
+    }));
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     
@@ -232,42 +318,80 @@ const SlotForm = ({ mode = 'create', onSubmit }) => {
       }))
     });
 
-    if (validateForm()) {
-      try {
-        // Get existing slots from localStorage
-        const savedSlots = localStorage.getItem('slots');
-        let existingSlots = [];
+    // Final validation before submission
+    const isFormValid = validateForm();
+    if (!isFormValid) {
+      toast.error('Please fill all required fields correctly');
+      return;
+    }
+
+    // Check for time conflicts
+    const hasTimeConflict = formData.sessions.some((session, index) => {
+      const sessionStart = new Date(`${session.date}T${session.startTime}`);
+      const sessionEnd = new Date(`${session.date}T${session.endTime}`);
+      
+      return formData.sessions.some((otherSession, otherIndex) => {
+        if (index === otherIndex) return false;
+        if (session.date !== otherSession.date) return false;
         
-        if (savedSlots) {
-          try {
-            const parsed = JSON.parse(savedSlots);
-            existingSlots = Array.isArray(parsed) ? parsed : [];
-          } catch (parseError) {
-            console.error('Error parsing saved slots:', parseError);
-            existingSlots = [];
-          }
+        const otherStart = new Date(`${otherSession.date}T${otherSession.startTime}`);
+        const otherEnd = new Date(`${otherSession.date}T${otherSession.endTime}`);
+        
+        return (sessionStart < otherEnd && sessionEnd > otherStart);
+      });
+    });
+
+    if (hasTimeConflict) {
+      toast.error('Time conflicts detected between sessions. Please check the schedule.');
+      return;
+    }
+
+    // Validate time format and logic
+    const hasInvalidTime = formData.sessions.some(session => {
+      const start = new Date(`${session.date}T${session.startTime}`);
+      const end = new Date(`${session.date}T${session.endTime}`);
+      return start >= end;
+    });
+
+    if (hasInvalidTime) {
+      toast.error('End time must be after start time for all sessions');
+      return;
+    }
+
+    try {
+      // Get existing slots from localStorage
+      const savedSlots = localStorage.getItem('slots');
+      let existingSlots = [];
+      
+      if (savedSlots) {
+        try {
+          const parsed = JSON.parse(savedSlots);
+          existingSlots = Array.isArray(parsed) ? parsed : [];
+        } catch (parseError) {
+          console.error('Error parsing saved slots:', parseError);
+          existingSlots = [];
         }
-        
-        if (editMode) {
-          // Update existing slot
-          const updatedSlots = existingSlots.map((slot, index) => 
-            index === slotIndex ? formData : slot
-          );
-          localStorage.setItem('slots', JSON.stringify(updatedSlots));
-          toast.success('Slot updated successfully');
-        } else {
-          // Add new slot
-          const newSlots = [...existingSlots, formData];
-          localStorage.setItem('slots', JSON.stringify(newSlots));
-          toast.success('Slot created successfully');
-        }
-        
-        // Navigate back to the table view
-        window.location.href = '/slots';
-      } catch (error) {
-        console.error('Error saving slot:', error);
-        toast.error('Error saving slot. Please try again.');
       }
+      
+      if (editMode) {
+        // Update existing slot
+        const updatedSlots = existingSlots.map((slot, index) => 
+          index === slotIndex ? formData : slot
+        );
+        localStorage.setItem('slots', JSON.stringify(updatedSlots));
+        toast.success('Slot updated successfully');
+      } else {
+        // Add new slot
+        const newSlots = [...existingSlots, formData];
+        localStorage.setItem('slots', JSON.stringify(newSlots));
+        toast.success('Slot created successfully');
+      }
+      
+      // Navigate back to the table view
+      window.location.href = '/slots';
+    } catch (error) {
+      console.error('Error saving slot:', error);
+      toast.error('Error saving slot. Please try again.');
     }
   };
 
@@ -279,32 +403,6 @@ const SlotForm = ({ mode = 'create', onSubmit }) => {
       );
     }
     return null;
-  };
-
-  const addSlot = () => {
-    // Validate first slot before allowing to add more
-    const firstSlot = formData.sessions[0];
-    if (!firstSlot.name || !firstSlot.type || !firstSlot.startTime || 
-        !firstSlot.endTime || !firstSlot.location || !firstSlot.deliveryMethod || 
-        !firstSlot.date) {
-      toast.error('Please fill all fields in the first slot before adding another');
-      return;
-    }
-
-    setFormData(prev => ({
-      ...prev,
-      sessions: [...prev.sessions, {
-        name: prev.sessions[0].name,
-        type: prev.sessions[0].type,
-        deliveryMethod: prev.sessions[0].deliveryMethod,
-        startTime: '',
-        endTime: '',
-        location: '',
-        date: '',
-        isActive: true
-      }]
-    }));
-    setErrors({});
   };
 
   return (
