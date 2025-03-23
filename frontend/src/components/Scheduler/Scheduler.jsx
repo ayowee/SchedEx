@@ -1,32 +1,77 @@
-import React from "react";
+import React, { useState } from "react";
 import { Scheduler } from "@aldabil/react-scheduler";
 import "./Scheduler.css";
-import { Box } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+import { dummyEvents } from "../../data/dummyEvents";
 
 const CustomScheduler = ({ selectedColor }) => {
-  // Sample events data
-  const events = [
+  const [events, setEvents] = useState(
+    dummyEvents.map((event) => ({
+      event_id: event.id,
+      title: event.title,
+      start: new Date(event.start),
+      end: new Date(event.end),
+      description: event.description,
+      color: event.color,
+      location: event.location,
+    }))
+  );
+
+  // Handle event creation
+  const handleConfirm = async (event, action) => {
+    if (action === "create") {
+      const newEvent = {
+        event_id: Date.now(),
+        title: event.title,
+        start: event.start,
+        end: event.end,
+        description: event.description || "",
+        color: selectedColor,
+        location: event.location || "",
+      };
+      setEvents([...events, newEvent]);
+      return newEvent;
+    }
+
+    if (action === "edit") {
+      const updatedEvents = events.map((e) =>
+        e.event_id === event.event_id ? event : e
+      );
+      setEvents(updatedEvents);
+      return event;
+    }
+
+    return event;
+  };
+
+  // Handle event deletion
+  const handleDelete = async (deletedId) => {
+    setEvents(events.filter((event) => event.event_id !== deletedId));
+    return deletedId;
+  };
+
+  // Custom fields for event form
+  const customFields = [
     {
-      event_id: 1,
-      title: "Meeting",
-      start: new Date("2024-02-15T10:00:00"),
-      end: new Date("2024-02-15T12:00:00"),
+      name: "description",
+      type: "textarea",
+      default: "",
+      config: {
+        label: "Description",
+        multiline: true,
+        rows: 4,
+      },
     },
     {
-      event_id: 2,
-      title: "Conference",
-      start: new Date("2024-02-16T09:00:00"),
-      end: new Date("2024-02-16T11:00:00"),
+      name: "location",
+      type: "input",
+      default: "",
+      config: {
+        label: "Location",
+        required: false,
+      },
     },
   ];
-
-  // Use selectedColor when creating new events
-  const handleEventCreate = (event) => {
-    return {
-      ...event,
-      backgroundColor: selectedColor,
-    };
-  };
 
   return (
     <Box
@@ -34,6 +79,13 @@ const CustomScheduler = ({ selectedColor }) => {
         width: "100%",
         height: "calc(100vh - 64px)", // Subtract navbar height
         overflow: "auto",
+        "& .rs__event": {
+          backgroundColor: (event) => event.color || selectedColor,
+          borderRadius: "4px",
+          "&:hover": {
+            opacity: 0.9,
+          },
+        },
       }}
     >
       {" "}
@@ -42,13 +94,53 @@ const CustomScheduler = ({ selectedColor }) => {
         <h2 className="text-2xl font-bold mb-4">February 2024</h2>
         <Scheduler
           events={events}
-          view="week"
-          selectedDate={new Date(2024, 1, 15)} // February 15, 2024
-          onConfirm={(event, action) => {
-            console.log("Event confirmed:", event, action);
+          onConfirm={handleConfirm}
+          onDelete={handleDelete}
+          customFields={customFields}
+          viewerExtraComponent={(fields, event) => (
+            <Box sx={{ p: 2 }}>
+              {event.description && (
+                <Typography variant="body2" sx={{ mb: 1 }}>
+                  {event.description}
+                </Typography>
+              )}
+              {event.location && (
+                <Typography variant="body2" color="textSecondary">
+                  📍 {event.location}
+                </Typography>
+              )}
+            </Box>
+          )}
+          fields={[
+            {
+              name: "color",
+              type: "hidden",
+              default: selectedColor,
+            },
+          ]}
+          month={{
+            weekDays: [0, 1, 2, 3, 4, 5, 6],
+            weekStartOn: 0,
+            startHour: 9,
+            endHour: 17,
           }}
-          onDelete={(deletedId) => {
-            console.log("Event deleted:", deletedId);
+          week={{
+            weekDays: [0, 1, 2, 3, 4, 5, 6],
+            weekStartOn: 0,
+            startHour: 9,
+            endHour: 17,
+          }}
+          day={{
+            startHour: 9,
+            endHour: 17,
+          }}
+          translations={{
+            navigation: {
+              month: "Month",
+              week: "Week",
+              day: "Day",
+              today: "Today",
+            },
           }}
         />
       </div>

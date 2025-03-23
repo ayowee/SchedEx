@@ -11,10 +11,13 @@
   },
   "dependencies": {
     "@aldabil/react-scheduler": "^3.0.5",
+    "@devexpress/dx-react-scheduler": "^4.0.10",
+    "@devexpress/dx-react-scheduler-material-ui": "^4.0.10",
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^6.4.8",
     "@mui/material": "^6.4.8",
+    "@mui/x-date-pickers": "^7.28.0",
     "@syncfusion/ej2-react-schedule": "^28.2.11",
     "@tailwindcss/vite": "^4.0.15",
     "date-fns": "^4.1.0",
