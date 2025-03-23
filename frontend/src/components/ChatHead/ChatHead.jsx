@@ -1,57 +1,46 @@
-import React, { useState } from 'react';
-import { IconButton, TextField, Button, Dialog, DialogTitle, DialogContent, DialogActions } from '@mui/material';
-import ChatIcon from '@mui/icons-material/Chat';
-import CloseIcon from '@mui/icons-material/Close';
+import React from "react";
+import {
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  IconButton,
+  Fab,
+  Paper,
+} from "@mui/material";
+import { Close, Chat } from "@mui/icons-material";
 
-const ChatHead = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState([]);
-  const [inputValue, setInputValue] = useState('');
-
-  const handleSendMessage = () => {
-    if (inputValue.trim()) {
-      setMessages([...messages, inputValue]);
-      setInputValue('');
-    }
-  };
-
+const ChatHead = ({ open, onClose, onOpen }) => {
   return (
-    <div className="fixed bottom-4 right-4">
-      <IconButton onClick={() => setIsOpen(true)} color="primary" aria-label="chat">
-        <ChatIcon fontSize="large" />
-      </IconButton>
+    <>
+      {/* Chat Button */}
+      <Fab color="primary" className="fixed bottom-6 right-6" onClick={onOpen}>
+        <Chat />
+      </Fab>
 
-      <Dialog open={isOpen} onClose={() => setIsOpen(false)}>
+      {/* Chat Dialog */}
+      <Dialog
+        open={open}
+        onClose={onClose}
+        maxWidth="sm"
+        fullWidth
+        className="fixed bottom-0 right-0"
+      >
         <DialogTitle className="flex justify-between items-center">
-          <span>AI Assistant</span>
-          <IconButton onClick={() => setIsOpen(false)}>
-            <CloseIcon />
+          AI Assistant
+          <IconButton onClick={onClose}>
+            <Close />
           </IconButton>
         </DialogTitle>
         <DialogContent>
-          <div className="h-64 overflow-y-auto">
-            {messages.map((msg, index) => (
-              <div key={index} className="mb-2 p-2 bg-gray-100 rounded">
-                <p>{msg}</p>
-              </div>
-            ))}
-          </div>
-          <TextField
-            fullWidth
-            variant="outlined"
-            placeholder="Type your message..."
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-          />
+          <Paper className="h-96 p-4">
+            {/* Chat messages would go here */}
+            <div className="text-gray-500 text-center mt-4">
+              How can I help you today?
+            </div>
+          </Paper>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={handleSendMessage} color="primary">
-            Send
-          </Button>
-        </DialogActions>
       </Dialog>
-    </div>
+    </>
   );
 };
 
