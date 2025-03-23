@@ -1,57 +1,45 @@
-import React, { useState } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { Scheduler } from "@aldabil/react-scheduler";
 import "./Scheduler.css";
-import { Box, Typography, Button } from "@mui/material";
+import { Box, Typography, Button, Stack } from "@mui/material";
 import { dummyEvents } from "../../data/dummyEvents";
 import { ListAlt as ListAltIcon } from "@mui/icons-material";
 import AgendaDialog from "../AgendaDialog/AgendaDialog";
+import PropTypes from "prop-types";
 
-const CustomScheduler = ({ selectedColor }) => {
-  const [events, setEvents] = useState(
-    dummyEvents.map((event) => ({
-      event_id: event.id,
-      title: event.title,
-      start: new Date(event.start),
-      end: new Date(event.end),
-      description: event.description,
-      color: event.color,
-      location: event.location,
-    }))
-  );
-
+const CustomScheduler = ({
+  events,
+  selectedColor,
+  onEventAdd,
+  onEventUpdate,
+  onEventDelete,
+  getSchedulerRef,
+  currentView,
+  onViewChange,
+}) => {
   const [agendaOpen, setAgendaOpen] = useState(false);
 
   // Handle event creation
   const handleConfirm = async (event, action) => {
     if (action === "create") {
       const newEvent = {
-        event_id: Date.now(),
-        title: event.title,
-        start: event.start,
-        end: event.end,
-        description: event.description || "",
+        ...event,
         color: selectedColor,
-        location: event.location || "",
       };
-      setEvents([...events, newEvent]);
+      onEventAdd(newEvent);
       return newEvent;
     }
-
     if (action === "edit") {
-      const updatedEvents = events.map((e) =>
-        e.event_id === event.event_id ? event : e
-      );
-      setEvents(updatedEvents);
+      onEventUpdate(event);
       return event;
     }
-
     return event;
   };
 
   // Handle event deletion
-  const handleDelete = async (deletedId) => {
-    setEvents(events.filter((event) => event.event_id !== deletedId));
-    return deletedId;
+  const handleDelete = async (eventId) => {
+    onEventDelete(eventId);
+    return eventId;
   };
 
   // Custom fields for event form
@@ -77,6 +65,35 @@ const CustomScheduler = ({ selectedColor }) => {
     },
   ];
 
+  // Custom styles to hide Agenda tab
+  const customStyles = `
+    .rs__view_navigator button:nth-child(2) {
+      display: none !important;
+    }
+    
+    /* Make the time column fixed */
+    .rs__time_indicator {
+      position: sticky;
+      left: 0;
+      background: white;
+      z-index: 1;
+    }
+
+    /* Ensure proper scrolling */
+    .rs__scheduler {
+      overflow: auto !important;
+      height: 100% !important;
+    }
+
+    /* Keep headers visible while scrolling */
+    .rs__header {
+      position: sticky;
+      top: 0;
+      background: white;
+      z-index: 2;
+    }
+  `;
+
   return (
     <Box
       sx={{
@@ -92,22 +109,9 @@ const CustomScheduler = ({ selectedColor }) => {
         },
       }}
     >
-      {/* Agenda Button */}
-      <Button
-        variant="contained"
-        startIcon={<ListAltIcon />}
-        sx={{
-          position: "absolute",
-          top: 16,
-          right: 16,
-          zIndex: 1000,
-        }}
-        onClick={() => setAgendaOpen(true)}
-      >
-        View Agenda
-      </Button>
-
+      <style>{customStyles}</style>
       <Scheduler
+        getSchedulerRef={getSchedulerRef}
         events={events}
         onConfirm={handleConfirm}
         onDelete={handleDelete}
@@ -133,33 +137,59 @@ const CustomScheduler = ({ selectedColor }) => {
             default: selectedColor,
           },
         ]}
-        view="week"
-        selectedDate={new Date()}
-        month={{
-          weekDays: [0, 1, 2, 3, 4, 5, 6],
-          weekStartOn: 0,
-          startHour: 9,
-          endHour: 17,
-          navigation: true,
-          disableGoToDay: false,
+        view={currentView.toLowerCase()}
+        onViewChange={(newView) => onViewChange(newView)}
+        navigation={{
+          hidden: false,
         }}
         week={{
           weekDays: [0, 1, 2, 3, 4, 5, 6],
           weekStartOn: 0,
-          startHour: 9,
-          endHour: 17,
+          startHour: 0,
+          endHour: 24,
           step: 60,
-          navigation: true,
+          cellRenderer: ({ height, start, onClick, ...props }) => {
+            return (
+              <div
+                style={{
+                  height: 60,
+                  ...props.style,
+                }}
+                onClick={onClick}
+              />
+            );
+          },
         }}
         day={{
-          startHour: 9,
-          endHour: 17,
+          startHour: 0,
+          endHour: 24,
           step: 60,
-          navigation: true,
+          cellRenderer: ({ height, start, onClick, ...props }) => {
+            return (
+              <div
+                style={{
+                  height: 60,
+                  ...props.style,
+                }}
+                onClick={onClick}
+              />
+            );
+          },
         }}
-        navigationPickerProps={{
-          shouldDisableDate: false,
-          variant: "inline",
+        month={{
+          weekDays: [0, 1, 2, 3, 4, 5, 6],
+          weekStartOn: 0,
+          startHour: 0,
+          endHour: 24,
+        }}
+        toolbar={{
+          dateFormat: {
+            month: "long",
+            year: "numeric",
+            day: "numeric",
+            weekday: "long",
+          },
+          showTodayButton: false,
         }}
         translations={{
           navigation: {
@@ -178,6 +208,10 @@ const CustomScheduler = ({ selectedColor }) => {
           agenda: {
             time: "Time",
             event: "Event",
+          },
+          time: {
+            am: "AM",
+            pm: "PM",
           },
         }}
         hourFormat="12"
@@ -206,17 +240,19 @@ const CustomScheduler = ({ selectedColor }) => {
           showViewSwitcher: true,
         }}
       />
-
-      {/* Agenda Dialog */}
-      {agendaOpen && (
-        <AgendaDialog
-          open={agendaOpen}
-          onClose={() => setAgendaOpen(false)}
-          events={events}
-        />
-      )}
     </Box>
   );
+};
+
+CustomScheduler.propTypes = {
+  events: PropTypes.array.isRequired,
+  selectedColor: PropTypes.string.isRequired,
+  onEventAdd: PropTypes.func.isRequired,
+  onEventUpdate: PropTypes.func.isRequired,
+  onEventDelete: PropTypes.func.isRequired,
+  getSchedulerRef: PropTypes.func.isRequired,
+  currentView: PropTypes.string.isRequired,
+  onViewChange: PropTypes.func.isRequired,
 };
 
 export default CustomScheduler;

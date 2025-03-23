@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useCallback } from "react";
 import {
   IconButton,
   ThemeProvider,
@@ -13,6 +13,7 @@ import {
   Tooltip,
   CssBaseline,
   Box,
+  Stack,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -23,10 +24,13 @@ import {
   NotificationsOutlined as NotificationsIcon,
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
+  ListAlt as ListAltIcon,
 } from "@mui/icons-material";
 import CustomScheduler from "./components/Scheduler/Scheduler";
 import ChatHead from "./components/ChatHead/ChatHead";
 import ColorPicker from "./components/ColorPicker/ColorPicker";
+import AgendaDialog from "./components/AgendaDialog/AgendaDialog";
+import ChatBot from "./components/ChatBot/ChatBot";
 
 const theme = createTheme({
   components: {
@@ -81,11 +85,37 @@ const theme = createTheme({
   },
 });
 
+// Initial dummy events
+const initialEvents = [
+  {
+    event_id: 1,
+    title: "Team Meeting",
+    description: "Weekly team sync-up",
+    start: new Date(new Date().setHours(10, 0, 0, 0)),
+    end: new Date(new Date().setHours(11, 0, 0, 0)),
+    color: "#2563eb",
+    location: "Conference Room A",
+  },
+  {
+    event_id: 2,
+    title: "Project Review",
+    description: "Q1 project status review",
+    start: new Date(new Date().setHours(14, 0, 0, 0)),
+    end: new Date(new Date().setHours(15, 30, 0, 0)),
+    color: "#dc2626",
+    location: "Virtual Meeting",
+  },
+];
+
 const App = () => {
   const [chatOpen, setChatOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [anchorEl, setAnchorEl] = useState(null);
   const [selectedColor, setSelectedColor] = useState("#2563eb");
+  const [agendaOpen, setAgendaOpen] = useState(false);
+  const [schedulerRef, setSchedulerRef] = useState(null);
+  const [events, setEvents] = useState(initialEvents);
+  const [currentView, setCurrentView] = useState("week");
 
   const handleProfileClick = (event) => {
     setAnchorEl(event.currentTarget);
@@ -94,6 +124,23 @@ const App = () => {
   const handleClose = () => {
     setAnchorEl(null);
   };
+
+  // Event handlers
+  const handleEventAdd = useCallback((newEvent) => {
+    setEvents((prev) => [...prev, { ...newEvent, event_id: Date.now() }]);
+  }, []);
+
+  const handleEventUpdate = useCallback((updatedEvent) => {
+    setEvents((prev) =>
+      prev.map((event) =>
+        event.event_id === updatedEvent.event_id ? updatedEvent : event
+      )
+    );
+  }, []);
+
+  const handleEventDelete = useCallback((eventId) => {
+    setEvents((prev) => prev.filter((event) => event.event_id !== eventId));
+  }, []);
 
   return (
     <ThemeProvider theme={theme}>
@@ -121,89 +168,53 @@ const App = () => {
               px: { xs: 2, sm: 4 }, // Responsive padding
             }}
           >
-            {/* Left side - Logo and Controls */}
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: { xs: 1, sm: 2, md: 4 }, // Responsive spacing
-              }}
-            >
+            {/* Left side - Logo and Agenda button only */}
+            <Stack direction="row" spacing={2} alignItems="center">
               <Typography
                 variant="h5"
                 component="div"
                 sx={{
                   fontWeight: "bold",
                   color: "primary.main",
-                  display: { xs: "none", sm: "block" }, // Hide on mobile
                 }}
               >
                 SchedEx
               </Typography>
-              <Button variant="contained" color="primary" size="small">
-                Today
-              </Button>
-              <Box
-                sx={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 1,
-                }}
-              >
-                <IconButton size="small">
-                  <ChevronLeftIcon />
-                </IconButton>
-                <Typography
-                  variant="subtitle1"
-                  sx={{ display: { xs: "none", md: "block" } }}
-                >
-                  February 2024
-                </Typography>
-                <IconButton size="small">
-                  <ChevronRightIcon />
-                </IconButton>
-              </Box>
-            </Box>
 
-            {/* Right side - Controls */}
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                gap: { xs: 1, sm: 2, md: 3 },
-              }}
-            >
-              <Box
-                sx={{
-                  display: { xs: "none", md: "flex" },
-                  alignItems: "center",
-                  bgcolor: "grey.100",
-                  borderRadius: 1,
-                  px: 2,
-                  py: 0.5,
-                }}
+              <Button
+                variant="outlined"
+                startIcon={<ListAltIcon />}
+                onClick={() => setAgendaOpen(true)}
               >
-                <SearchIcon color="action" />
+                View Agenda
+              </Button>
+            </Stack>
+
+            {/* Right side controls */}
+            <Stack direction="row" spacing={2} alignItems="center">
+              <div className="flex items-center bg-gray-100 rounded-md px-3 py-1">
+                <SearchIcon className="text-gray-500" />
                 <input
                   className="bg-transparent border-none outline-none ml-2 w-48"
                   placeholder="Search events..."
                 />
-              </Box>
+              </div>
 
-              <Button
-                variant="outlined"
-                endIcon={<KeyboardArrowDownIcon />}
+              {/* Current View Display */}
+              <Typography
+                variant="button"
                 sx={{
-                  minWidth: { xs: "auto", sm: 100 },
-                  display: { xs: "none", sm: "flex" },
+                  px: 2,
+                  py: 1,
+                  border: "1px solid",
+                  borderColor: "divider",
+                  borderRadius: 1,
+                  minWidth: 120,
+                  textAlign: "center",
                 }}
               >
-                Week
-              </Button>
-
-              <IconButton sx={{ display: { xs: "none", md: "flex" } }}>
-                <PaletteIcon />
-              </IconButton>
+                {`${currentView} View`}
+              </Typography>
 
               <IconButton>
                 <NotificationsIcon />
@@ -216,7 +227,7 @@ const App = () => {
               <IconButton onClick={handleProfileClick}>
                 <Avatar sx={{ width: 32, height: 32 }}>U</Avatar>
               </IconButton>
-            </Box>
+            </Stack>
           </Toolbar>
         </AppBar>
 
@@ -228,7 +239,16 @@ const App = () => {
             overflow: "auto",
           }}
         >
-          <CustomScheduler selectedColor={selectedColor} />
+          <CustomScheduler
+            events={events}
+            selectedColor={selectedColor}
+            onEventAdd={handleEventAdd}
+            onEventUpdate={handleEventUpdate}
+            onEventDelete={handleEventDelete}
+            getSchedulerRef={setSchedulerRef}
+            currentView={currentView}
+            onViewChange={setCurrentView}
+          />
         </Box>
 
         {/* AI Chat Button - Fixed Position */}
@@ -255,6 +275,13 @@ const App = () => {
           onColorChange={setSelectedColor}
         />
 
+        {/* Agenda Dialog */}
+        <AgendaDialog
+          open={agendaOpen}
+          onClose={() => setAgendaOpen(false)}
+          events={events}
+        />
+
         <Menu
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}
@@ -272,6 +299,9 @@ const App = () => {
           <MenuItem onClick={handleClose}>Settings</MenuItem>
           <MenuItem onClick={handleClose}>Logout</MenuItem>
         </Menu>
+
+        {/* Add ChatBot */}
+        <ChatBot />
       </Box>
     </ThemeProvider>
   );
