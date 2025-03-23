@@ -76,9 +76,8 @@ const CustomScheduler = ({ selectedColor }) => {
   return (
     <Box
       sx={{
+        height: "calc(100vh - 64px)",
         width: "100%",
-        height: "calc(100vh - 64px)", // Subtract navbar height
-        overflow: "auto",
         "& .rs__event": {
           backgroundColor: (event) => event.color || selectedColor,
           borderRadius: "4px",
@@ -88,62 +87,105 @@ const CustomScheduler = ({ selectedColor }) => {
         },
       }}
     >
-      {" "}
-      {/* Subtract navbar height */}
-      <div className="scheduler-container">
-        <h2 className="text-2xl font-bold mb-4">February 2024</h2>
-        <Scheduler
-          events={events}
-          onConfirm={handleConfirm}
-          onDelete={handleDelete}
-          customFields={customFields}
-          viewerExtraComponent={(fields, event) => (
-            <Box sx={{ p: 2 }}>
-              {event.description && (
-                <Typography variant="body2" sx={{ mb: 1 }}>
-                  {event.description}
-                </Typography>
-              )}
-              {event.location && (
-                <Typography variant="body2" color="textSecondary">
-                  📍 {event.location}
-                </Typography>
-              )}
+      <Scheduler
+        events={events}
+        onConfirm={handleConfirm}
+        onDelete={handleDelete}
+        customFields={customFields}
+        viewerExtraComponent={(fields, event) => (
+          <Box sx={{ p: 2 }}>
+            {event.description && (
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                {event.description}
+              </Typography>
+            )}
+            {event.location && (
+              <Typography variant="body2" color="textSecondary">
+                📍 {event.location}
+              </Typography>
+            )}
+          </Box>
+        )}
+        fields={[
+          {
+            name: "color",
+            type: "hidden",
+            default: selectedColor,
+          },
+        ]}
+        view="week"
+        selectedDate={new Date()}
+        month={{
+          weekDays: [0, 1, 2, 3, 4, 5, 6],
+          weekStartOn: 0,
+          startHour: 9,
+          endHour: 17,
+          navigation: true,
+          disableGoToDay: false,
+        }}
+        week={{
+          weekDays: [0, 1, 2, 3, 4, 5, 6],
+          weekStartOn: 0,
+          startHour: 9,
+          endHour: 17,
+          step: 60,
+          navigation: true,
+        }}
+        day={{
+          startHour: 9,
+          endHour: 17,
+          step: 60,
+          navigation: true,
+        }}
+        navigationPickerProps={{
+          shouldDisableDate: false,
+          variant: "inline",
+        }}
+        translations={{
+          navigation: {
+            month: "Month",
+            week: "Week",
+            day: "Day",
+            today: "Today",
+          },
+          form: {
+            addTitle: "Add Event",
+            editTitle: "Edit Event",
+            confirm: "Confirm",
+            delete: "Delete",
+            cancel: "Cancel",
+          },
+          agenda: {
+            time: "Time",
+            event: "Event",
+          },
+        }}
+        hourFormat="12"
+        draggable={true}
+        editable={true}
+        deletable={true}
+        resources={[]}
+        resourceFields={{
+          idField: "event_id",
+          textField: "title",
+          subTextField: "description",
+          avatarField: "avatar",
+          colorField: "color",
+        }}
+        recourseHeaderComponent={(resource) => {
+          return (
+            <Box sx={{ display: "flex", alignItems: "center" }}>
+              <Typography>{resource.title}</Typography>
             </Box>
-          )}
-          fields={[
-            {
-              name: "color",
-              type: "hidden",
-              default: selectedColor,
-            },
-          ]}
-          month={{
-            weekDays: [0, 1, 2, 3, 4, 5, 6],
-            weekStartOn: 0,
-            startHour: 9,
-            endHour: 17,
-          }}
-          week={{
-            weekDays: [0, 1, 2, 3, 4, 5, 6],
-            weekStartOn: 0,
-            startHour: 9,
-            endHour: 17,
-          }}
-          day={{
-            startHour: 9,
-            endHour: 17,
-          }}
-          translations={{
-            navigation: {
-              month: "Month",
-              week: "Week",
-              day: "Day",
-              today: "Today",
-            },
-          }}
-        />
-      </div>
+          );
+        }}
+        defaultView="week"
+        toolbarProps={{
+          showDatePicker: true,
+          showTodayButton: true,
+          showViewSwitcher: true,
+        }}
+      />
     </Box>
   );
 };
