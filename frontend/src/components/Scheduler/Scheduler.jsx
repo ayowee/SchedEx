@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { Scheduler } from "@aldabil/react-scheduler";
 import "./Scheduler.css";
-import { Box, Typography } from "@mui/material";
+import { Box, Typography, Button } from "@mui/material";
 import { dummyEvents } from "../../data/dummyEvents";
+import { ListAlt as ListAltIcon } from "@mui/icons-material";
+import AgendaDialog from "../AgendaDialog/AgendaDialog";
 
 const CustomScheduler = ({ selectedColor }) => {
   const [events, setEvents] = useState(
@@ -16,6 +18,8 @@ const CustomScheduler = ({ selectedColor }) => {
       location: event.location,
     }))
   );
+
+  const [agendaOpen, setAgendaOpen] = useState(false);
 
   // Handle event creation
   const handleConfirm = async (event, action) => {
@@ -78,6 +82,7 @@ const CustomScheduler = ({ selectedColor }) => {
       sx={{
         height: "calc(100vh - 64px)",
         width: "100%",
+        position: "relative",
         "& .rs__event": {
           backgroundColor: (event) => event.color || selectedColor,
           borderRadius: "4px",
@@ -87,6 +92,21 @@ const CustomScheduler = ({ selectedColor }) => {
         },
       }}
     >
+      {/* Agenda Button */}
+      <Button
+        variant="contained"
+        startIcon={<ListAltIcon />}
+        sx={{
+          position: "absolute",
+          top: 16,
+          right: 16,
+          zIndex: 1000,
+        }}
+        onClick={() => setAgendaOpen(true)}
+      >
+        View Agenda
+      </Button>
+
       <Scheduler
         events={events}
         onConfirm={handleConfirm}
@@ -186,6 +206,15 @@ const CustomScheduler = ({ selectedColor }) => {
           showViewSwitcher: true,
         }}
       />
+
+      {/* Agenda Dialog */}
+      {agendaOpen && (
+        <AgendaDialog
+          open={agendaOpen}
+          onClose={() => setAgendaOpen(false)}
+          events={events}
+        />
+      )}
     </Box>
   );
 };
