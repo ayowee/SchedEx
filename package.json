@@ -1,8 +1,15 @@
 {
   "dependencies": {
+
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
     "@mui/icons-material": "^6.4.8",
     "@mui/material": "^6.4.8"
+"@mui/x-date-pickers": "^6.x.x",
+    "axios": "^1.x.x",
+    "date-fns": "^2.x.x",
+    "react": "^18.x.x",
+    "react-big-calendar": "^1.x.x",
+    "react-dom": "^18.x.x"
   }
 }
