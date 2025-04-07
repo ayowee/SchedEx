@@ -388,7 +388,7 @@ const SlotForm = ({ mode = 'create', onSubmit }) => {
       }
       
       // Navigate back to the table view
-      window.location.href = '/slots';
+      window.location.href = '/managing-slot';
     } catch (error) {
       console.error('Error saving slot:', error);
       toast.error('Error saving slot. Please try again.');
