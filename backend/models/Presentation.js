@@ -1,8 +1,8 @@
 const mongoose = require('mongoose');
 const PresentationSchema = new mongoose.Schema({
   title: String,
-  student: String, // could be studentId if you want to relate to User
-  examiner: String, // could be examinerId
+  student: String,
+  examiner: String,
   status: { type: String, enum: ['Scheduled', 'Completed', 'Cancelled'], default: 'Scheduled' },
   scheduledDate: Date,
   location: String,

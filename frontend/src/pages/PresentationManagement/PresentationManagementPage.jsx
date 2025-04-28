@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { jsPDF } from 'jspdf';
@@ -6,84 +6,45 @@ import autoTable from 'jspdf-autotable';
 import PresentationForm from '../../components/forms/PresentationForm';
 import PresentationTable from '../../components/presentationManagement/Presentation/PresentationTable';
 import SchedExLogo from '../../assets/Logo.png';
+import { presentationService } from '../../services/api';
 
 const PresentationManagementPage = () => {
-    // Initial data
-    const initialPresentations = [
-        {
-            id: 1,
-            groupId: "CS-01",
-            examinerId: "EX-101",
-            date: "2025-10-15",
-            time: "10:00",
-            location: "CS Lab 1",
-            duration: 30,
-            examinerName: "Dr. Smith",
-            examinerEmail: "smith@university.edu",
-            subjectName: "Advanced Algorithms",
-            description: "Final project presentation",
-            status: "Scheduled"
-        },
-        {
-            id: 2,
-            groupId: "CS-02",
-            examinerId: "EX-102",
-            date: "2025-10-16",
-            time: "14:00",
-            location: "CS Lab 2",
-            duration: 45,
-            examinerName: "Dr. Johnson",
-            examinerEmail: "johnson@university.edu",
-            subjectName: "Database Systems",
-            description: "Research paper presentation",
-            status: "Completed"
-        },
-        {
-            id: 3,
-            groupId: "CS-03",
-            examinerId: "EX-103",
-            date: "2025-10-17",
-            time: "11:30",
-            location: "CS Lab 3",
-            duration: 40,
-            examinerName: "Dr. Williams",
-            examinerEmail: "williams@university.edu",
-            subjectName: "Machine Learning",
-            description: "Project demonstration",
-            status: "Cancelled"
-        },
-        {
-            id: 4,
-            groupId: "CS-04",
-            examinerId: "EX-104",
-            date: "2025-10-18",
-            time: "09:00",
-            location: "CS Lab 1",
-            duration: 35,
-            examinerName: "Dr. Brown",
-            examinerEmail: "brown@university.edu",
-            subjectName: "Web Development",
-            description: "Final project presentation",
-            status: "Scheduled"
-        }
-    ];
-
     // State management
-    const [presentations, setPresentations] = useState(initialPresentations);
+    const [presentations, setPresentations] = useState([]);
     const [editingPresentation, setEditingPresentation] = useState(null);
     const [showForm, setShowForm] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [sortConfig, setSortConfig] = useState({ key: 'date', direction: 'asc' });
     const [statusFilter, setStatusFilter] = useState('All');
+
+    // Fetch presentations from API on component mount
+    useEffect(() => {
+        fetchPresentations();
+    }, []);
+
+    const fetchPresentations = async () => {
+        setIsLoading(true);
+        try {
+            const data = await presentationService.getAllPresentations();
+            setPresentations(data);
+        } catch (error) {
+            console.error('Error fetching presentations:', error);
+            toast.error('Failed to load presentations. Please try again later.');
+            // If API fails, use empty array
+            setPresentations([]);
+        } finally {
+            setIsLoading(false);
+        }
+    };
 
     // Filter and sort presentations
     const filteredPresentations = useMemo(() => {
         const filtered = presentations.filter(pres => {
             const matchesSearch = 
-                pres.groupId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                pres.subjectName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                pres.examinerName.toLowerCase().includes(searchTerm.toLowerCase());
+                pres.groupId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                pres.subjectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                pres.examinerName?.toLowerCase().includes(searchTerm.toLowerCase());
             
             const matchesStatus = statusFilter === 'All' || pres.status === statusFilter;
             
@@ -115,22 +76,17 @@ const PresentationManagementPage = () => {
     const addPresentation = async (presentation) => {
         setIsLoading(true);
         try {
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 800));
-
             if (editingPresentation) {
-                setPresentations(presentations.map(p =>
-                    p.id === editingPresentation.id ? presentation : p
-                ));
+                // Update existing presentation
+                await presentationService.updatePresentation(editingPresentation._id, presentation);
                 toast.success('Presentation updated successfully!');
             } else {
-                setPresentations([...presentations, {
-                    ...presentation,
-                    id: Math.max(...presentations.map(p => p.id), 0) + 1,
-                    status: presentation.status || 'Scheduled' // Default status
-                }]);
+                // Create new presentation
+                await presentationService.createPresentation(presentation);
                 toast.success('Presentation created successfully!');
             }
+            // Refresh the presentations list
+            fetchPresentations();
         } catch (err) {
             console.error('Error saving presentation:', err);
             toast.error('Error saving presentation');
@@ -142,7 +98,7 @@ const PresentationManagementPage = () => {
     };
 
     const editPresentation = (id) => {
-        const presentationToEdit = presentations.find(p => p.id === id);
+        const presentationToEdit = presentations.find(p => p._id === id);
         setEditingPresentation(presentationToEdit);
         setShowForm(true);
         
@@ -158,10 +114,10 @@ const PresentationManagementPage = () => {
     const deletePresentation = async (id) => {
         try {
             setIsLoading(true);
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 500));
-            setPresentations(presentations.filter(p => p.id !== id));
+            await presentationService.deletePresentation(id);
             toast.success('Presentation deleted successfully!');
+            // Refresh the presentations list
+            fetchPresentations();
         } catch (err) {
             console.error('Error deleting presentation:', err);
             toast.error('Error deleting presentation');
@@ -173,14 +129,10 @@ const PresentationManagementPage = () => {
     const updateStatus = async (id, newStatus) => {
         try {
             setIsLoading(true);
-            // Simulate API call
-            await new Promise(resolve => setTimeout(resolve, 500));
-            
-            setPresentations(presentations.map(p => 
-                p.id === id ? { ...p, status: newStatus } : p
-            ));
-            
+            await presentationService.updatePresentationStatus(id, newStatus);
             toast.success(`Presentation marked as ${newStatus}`);
+            // Refresh the presentations list
+            fetchPresentations();
         } catch (err) {
             console.error('Error updating presentation status:', err);
             toast.error('Error updating presentation status');
