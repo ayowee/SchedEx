@@ -81,7 +81,7 @@ const PresentationTable = ({ presentations, onEdit, onDelete, onStatusChange, so
                     <tbody className="bg-white divide-y divide-gray-200">
                         {presentations.length > 0 ? (
                             presentations.map((presentation) => (
-                                <tr key={presentation.id} className="hover:bg-gray-50">
+                                <tr key={presentation._id} className="hover:bg-gray-50">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                         {presentation.groupId}
                                     </td>
@@ -116,7 +116,7 @@ const PresentationTable = ({ presentations, onEdit, onDelete, onStatusChange, so
                                                 <select 
                                                     className="block w-full pl-3 pr-10 py-1 text-xs border border-gray-300 rounded-md focus:outline-none focus:ring-blue-500 focus:border-blue-500"
                                                     value={presentation.status}
-                                                    onChange={(e) => onStatusChange(presentation.id, e.target.value)}
+                                                    onChange={(e) => onStatusChange(presentation._id, e.target.value)}
                                                     disabled={isLoading}
                                                 >
                                                     <option value="Scheduled">Scheduled</option>
@@ -128,7 +128,7 @@ const PresentationTable = ({ presentations, onEdit, onDelete, onStatusChange, so
                                             {/* Action buttons */}
                                             <div className="flex space-x-2">
                                                 <button
-                                                    onClick={() => onEdit(presentation.id)}
+                                                    onClick={() => onEdit(presentation._id)}
                                                     className="inline-flex items-center justify-center p-1 rounded-md text-blue-600 hover:text-blue-800 hover:bg-blue-50 focus:outline-none"
                                                     disabled={isLoading}
                                                     title="Edit presentation"
@@ -138,7 +138,7 @@ const PresentationTable = ({ presentations, onEdit, onDelete, onStatusChange, so
                                                     </svg>
                                                 </button>
                                                 <button
-                                                    onClick={() => onDelete(presentation.id)}
+                                                    onClick={() => onDelete(presentation._id)}
                                                     className="inline-flex items-center justify-center p-1 rounded-md text-red-600 hover:text-red-800 hover:bg-red-50 focus:outline-none"
                                                     disabled={isLoading}
                                                     title="Delete presentation"
