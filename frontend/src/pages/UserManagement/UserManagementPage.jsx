@@ -1,9 +1,10 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import UserForm from "../../components/userManagement/UserForm";
 import UserTable from "../../components/userManagement/UserTable";
 import UserMetrics from "../../components/userManagement/Dashboard/UserMetrics";
 import UserCharts from "../../components/userManagement/Dashboard/UserCharts";
 import UserRecentActivity from "../../components/userManagement/Dashboard/UserRecentActivity";
+import { userService } from "../../services/api";
 
 const USER_TYPE_COLORS = {
   Admin: '#2563EB',
@@ -42,7 +43,20 @@ const initialUsers = [
 ];
 
 export default function UserManagementPage() {
-  const [users, setUsers] = useState(initialUsers);
+  const [users, setUsers] = useState([]);
+
+  // Fetch users from API on component mount
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const data = await userService.getAllUsers();
+        setUsers(data);
+      } catch (error) {
+        console.error('Error fetching users:', error);
+      }
+    };
+    fetchUsers();
+  }, []);
   const [editingUser, setEditingUser] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -50,9 +64,14 @@ export default function UserManagementPage() {
   const [recentActivity, setRecentActivity] = useState([]);
 
   // Add or update a user
-  const addUser = (user) => {
+  const addUser = async (user) => {
     if (editingUser) {
-      setUsers(users.map((u) => (u.id === editingUser.id ? { ...user, id: editingUser.id } : u)));
+      try {
+        const updatedUser = await userService.updateUser(editingUser._id, user);
+        setUsers(users.map((u) => (u._id === editingUser._id ? updatedUser : u)));
+      } catch (error) {
+        console.error('Error updating user:', error);
+      }
       setRecentActivity([
         {
           id: Date.now(),
@@ -65,7 +84,12 @@ export default function UserManagementPage() {
       ]);
       setEditingUser(null);
     } else {
-      setUsers([...users, { ...user, id: users.length + 1 }]);
+      try {
+        const newUser = await userService.createUser(user);
+        setUsers([...users, newUser]);
+      } catch (error) {
+        console.error('Error creating user:', error);
+      }
       setRecentActivity([
         {
           id: Date.now(),
@@ -82,8 +106,13 @@ export default function UserManagementPage() {
   };
 
   // Delete a user
-  const deleteUser = (user) => {
-    setUsers(users.filter((u) => u.id !== user.id));
+  const deleteUser = async (user) => {
+    try {
+      await userService.deleteUser(user._id);
+      setUsers(users.filter((u) => u._id !== user._id));
+    } catch (error) {
+      console.error('Error deleting user:', error);
+    }
     setRecentActivity([
       {
         id: Date.now(),

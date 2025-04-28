@@ -15,6 +15,9 @@ const UserForm = ({ addUser, editingUser, isSidebar }) => {
   const [emailError, setEmailError] = useState("");
   const [contactError, setContactError] = useState("");
   const [formTouched, setFormTouched] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+  const [submitSuccess, setSubmitSuccess] = useState(false);
 
   useEffect(() => {
     if (editingUser) {
@@ -83,8 +86,11 @@ const UserForm = ({ addUser, editingUser, isSidebar }) => {
   };
 
   // Handle form submit
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setSubmitting(true);
+    setSubmitError(null);
+    setSubmitSuccess(false);
     // Final validation
     setNicError(validateNIC(formData.nic) ? "" : "Invalid NIC format");
     setEmailError(validateEmail(formData.email) ? "" : "Invalid email");
@@ -96,7 +102,23 @@ const UserForm = ({ addUser, editingUser, isSidebar }) => {
       validateContact(formData.contactNumber) &&
       formData.userType
     ) {
-      addUser(formData);
+      try {
+        await addUser(formData);
+        setSubmitSuccess(true);
+        setFormData({
+          fullName: "",
+          nic: "",
+          email: "",
+          contactNumber: "",
+          userType: "",
+          permissions: [],
+        });
+      } catch (error) {
+        console.error('Error submitting form:', error);
+        setSubmitError('Failed to save user. Please try again.');
+      } finally {
+        setSubmitting(false);
+      }
     }
   };
 
@@ -233,6 +255,16 @@ const UserForm = ({ addUser, editingUser, isSidebar }) => {
       </div>
 
       {/* Actions */}
+      {submitError && (
+        <div className="p-3 rounded bg-red-50 border border-red-200 text-red-600 text-sm">
+          {submitError}
+        </div>
+      )}
+      {submitSuccess && (
+        <div className="p-3 rounded bg-green-50 border border-green-200 text-green-600 text-sm">
+          User saved successfully!
+        </div>
+      )}
       <div className="flex justify-end gap-4 pt-6 border-t border-gray-100 mt-6">
         <button
           type="button"
@@ -252,7 +284,7 @@ const UserForm = ({ addUser, editingUser, isSidebar }) => {
           type="submit"
           className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-md font-medium shadow-sm transition"
         >
-          {editingUser ? "Update User" : "Add User"}
+          {submitting ? 'Saving...' : editingUser ? 'Update User' : 'Add User'}
         </button>
       </div>
     </form>
