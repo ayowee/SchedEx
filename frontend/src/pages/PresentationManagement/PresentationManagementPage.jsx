@@ -42,9 +42,9 @@ const PresentationManagementPage = () => {
     const filteredPresentations = useMemo(() => {
         const filtered = presentations.filter(pres => {
             const matchesSearch = 
-                pres.groupId?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                pres.subjectName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                pres.examinerName?.toLowerCase().includes(searchTerm.toLowerCase());
+                (pres.groupId?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                (pres.subjectName?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+                (pres.examinerName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
             
             const matchesStatus = statusFilter === 'All' || pres.status === statusFilter;
             
@@ -423,6 +423,7 @@ const PresentationManagementPage = () => {
                                     setShowForm(false);
                                     setEditingPresentation(null);
                                 }}
+                                onDelete={editingPresentation ? () => deletePresentation(editingPresentation._id) : null}
                                 isLoading={isLoading}
                             />
                         </div>
