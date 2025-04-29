@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-toastify';
 
-const PresentationForm = ({ initialValues, onSubmit, onDelete, isLoading }) => {
+const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, isLoading }) => {
     const [formData, setFormData] = useState({
         id: null,
         groupId: '',
@@ -26,15 +26,17 @@ const PresentationForm = ({ initialValues, onSubmit, onDelete, isLoading }) => {
     // Status options
     const statusOptions = ['Scheduled', 'Completed', 'Cancelled'];
 
-    // Update form data when initialValues change
+    // Update form data when editingPresentation changes
     useEffect(() => {
-        if (initialValues) {
-            setFormData(prevData => ({
-                ...prevData,
-                ...initialValues
-            }));
+        if (editingPresentation) {
+            console.log("Editing presentation data:", editingPresentation);
+            setFormData({
+                ...editingPresentation,
+                // Ensure we keep the MongoDB _id but also add an id field for form compatibility
+                id: editingPresentation._id
+            });
         }
-    }, [initialValues]);
+    }, [editingPresentation]);
 
     // Handle input changes
     const handleChange = (e) => {
@@ -94,6 +96,13 @@ const PresentationForm = ({ initialValues, onSubmit, onDelete, isLoading }) => {
         } else {
             setConfirmDelete(true);
             setTimeout(() => setConfirmDelete(false), 3000); // Reset after 3 seconds
+        }
+    };
+
+    // Handle cancel
+    const handleCancel = () => {
+        if (onCancel) {
+            onCancel();
         }
     };
 
@@ -315,6 +324,14 @@ const PresentationForm = ({ initialValues, onSubmit, onDelete, isLoading }) => {
                         {confirmDelete ? 'Confirm Delete' : 'Delete'}
                     </button>
                 )}
+                <button
+                    type="button"
+                    onClick={handleCancel}
+                    disabled={isLoading}
+                    className="px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md text-sm font-medium transition-colors"
+                >
+                    Cancel
+                </button>
                 <button
                     type="submit"
                     disabled={isLoading}

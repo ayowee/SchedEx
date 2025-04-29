@@ -423,6 +423,7 @@ const PresentationManagementPage = () => {
                                     setShowForm(false);
                                     setEditingPresentation(null);
                                 }}
+                                onDelete={editingPresentation ? () => deletePresentation(editingPresentation._id) : null}
                                 isLoading={isLoading}
                             />
                         </div>
