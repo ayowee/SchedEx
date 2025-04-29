@@ -18,6 +18,9 @@ import AdminDashboard from './pages/PresentationManagement/AdminDashboard';
 import Calendar from './pages/PresentationManagement/Calendar';
 import AdminLayout from './layouts/AdminLayout';
 
+// Examiner Availability Management
+import AvailabilityView from './pages/AvailabilityManagement/AvailabilityView';
+
 function App() {
   return (
     <HelmetProvider>
@@ -36,6 +39,7 @@ function App() {
           <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
           <Route path="/admin/presentations" element={<AdminLayout><PresentationManagementPage /></AdminLayout>} />
           <Route path="/admin/schedular" element={<AdminLayout><Calendar /></AdminLayout>} />
+          <Route path="/admin/availability" element={<AvailabilityView />} />
         </Routes>
       </Router>
     </HelmetProvider>
