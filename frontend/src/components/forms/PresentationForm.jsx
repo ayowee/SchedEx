@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 
 const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, isLoading }) => {
@@ -12,17 +12,19 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
         time: '',
         duration: 30,
         location: '',
+        customLocation: '',
         subjectName: '',
         description: '',
         status: 'Scheduled'
     });
-    
+
     const [errors, setErrors] = useState({});
     const [confirmDelete, setConfirmDelete] = useState(false);
+    const [showCustomLocation, setShowCustomLocation] = useState(false);
 
-    // Locations for dropdown
-    const locations = ['Room A101', 'Room B205', 'Room C310', 'Conference Hall', 'Online'];
-    
+    // Locations for dropdown - wrapped in useMemo to avoid dependency changes
+    const locations = useMemo(() => ['Room A101', 'Room B205', 'Room C310', 'Conference Hall', 'Online', 'Other'], []);
+
     // Status options
     const statusOptions = ['Scheduled', 'Completed', 'Cancelled'];
 
@@ -35,8 +37,18 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                 // Ensure we keep the MongoDB _id but also add an id field for form compatibility
                 id: editingPresentation._id
             });
+
+            // Check if location is in the predefined list or custom
+            if (editingPresentation.location && !locations.includes(editingPresentation.location)) {
+                setFormData(prev => ({
+                    ...prev,
+                    customLocation: editingPresentation.location,
+                    location: 'Other'
+                }));
+                setShowCustomLocation(true);
+            }
         }
-    }, [editingPresentation]);
+    }, [editingPresentation, locations]);
 
     // Handle input changes
     const handleChange = (e) => {
@@ -45,45 +57,169 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
             ...formData,
             [name]: value
         });
-        
-        // Clear error for this field if exists
-        if (errors[name]) {
-            setErrors({
-                ...errors,
-                [name]: null
-            });
+
+        // Perform real-time validation for the changed field
+        validateField(name, value);
+    };
+
+    // Real-time field validation
+    const validateField = (name, value) => {
+        let errorMessage = '';
+
+        switch (name) {
+            case 'groupId':
+                if (!value.trim()) {
+                    errorMessage = 'Group ID is required';
+                } else if (value.trim().length < 3) {
+                    errorMessage = 'Group ID must be at least 3 characters';
+                }
+                break;
+
+            case 'examinerName':
+                if (!value.trim()) {
+                    errorMessage = 'Examiner name is required';
+                } else if (value.trim().length < 3) {
+                    errorMessage = 'Examiner name must be at least 3 characters';
+                }
+                break;
+
+            case 'examinerEmail':
+                if (!value.trim()) {
+                    errorMessage = 'Examiner email is required';
+                } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+                    errorMessage = 'Invalid email format';
+                }
+                break;
+
+            case 'date':
+                if (!value) {
+                    errorMessage = 'Date is required';
+                } else {
+                    // Check if date is in the past
+                    const selectedDate = new Date(value);
+                    const today = new Date();
+                    today.setHours(0, 0, 0, 0); // Reset time to start of day for comparison
+
+                    if (selectedDate < today) {
+                        errorMessage = 'Cannot schedule presentations in the past';
+                    }
+
+                    // If date is today, check if time is in the past
+                    if (selectedDate.toDateString() === today.toDateString() && formData.time) {
+                        validateField('time', formData.time);
+                    }
+                }
+                break;
+
+            case 'time':
+                if (!value) {
+                    errorMessage = 'Time is required';
+                } else if (formData.date) {
+                    const selectedDate = new Date(formData.date);
+                    const today = new Date();
+
+                    // Only validate time if date is today
+                    if (selectedDate.toDateString() === today.toDateString()) {
+                        const [hours, minutes] = value.split(':').map(Number);
+                        const selectedTime = new Date();
+                        selectedTime.setHours(hours, minutes, 0, 0);
+
+                        const currentTime = new Date();
+
+                        if (selectedTime < currentTime) {
+                            errorMessage = 'Cannot schedule presentations in the past';
+                        }
+                    }
+                }
+                break;
+
+            case 'location':
+                if (!value) {
+                    errorMessage = 'Location is required';
+                } else if (value === 'Other' && !formData.customLocation?.trim()) {
+                    validateField('customLocation', formData.customLocation || '');
+                }
+                break;
+
+            case 'customLocation':
+                if (formData.location === 'Other' && !value.trim()) {
+                    errorMessage = 'Custom location is required';
+                }
+                break;
+
+            case 'duration':
+                if (!value) {
+                    errorMessage = 'Duration is required';
+                } else if (Number(value) <= 0) {
+                    errorMessage = 'Duration must be greater than 0';
+                } else if (Number(value) > 180) {
+                    errorMessage = 'Duration cannot exceed 3 hours (180 minutes)';
+                }
+                break;
+
+            case 'subjectName':
+                if (!value.trim()) {
+                    errorMessage = 'Subject name is required';
+                } else if (value.trim().length < 3) {
+                    errorMessage = 'Subject name must be at least 3 characters';
+                }
+                break;
+
+            default:
+                break;
         }
+
+        // Update errors state for this field
+        setErrors(prev => ({
+            ...prev,
+            [name]: errorMessage || null
+        }));
+
+        return !errorMessage;
     };
 
     // Validate form
     const validateForm = () => {
-        const newErrors = {};
-        
-        if (!formData.groupId.trim()) newErrors.groupId = 'Group ID is required';
-        if (!formData.examinerName.trim()) newErrors.examinerName = 'Examiner name is required';
-        if (!formData.examinerEmail.trim()) {
-            newErrors.examinerEmail = 'Examiner email is required';
-        } else if (!/\S+@\S+\.\S+/.test(formData.examinerEmail)) {
-            newErrors.examinerEmail = 'Invalid email format';
+        // Validate all fields
+        const groupIdValid = validateField('groupId', formData.groupId);
+        const examinerNameValid = validateField('examinerName', formData.examinerName);
+        const examinerEmailValid = validateField('examinerEmail', formData.examinerEmail);
+        const dateValid = validateField('date', formData.date);
+        const timeValid = validateField('time', formData.time);
+        const locationValid = validateField('location', formData.location);
+        const durationValid = validateField('duration', formData.duration);
+        const subjectNameValid = validateField('subjectName', formData.subjectName);
+
+        // If location is "Other", validate custom location
+        let customLocationValid = true;
+        if (formData.location === 'Other') {
+            customLocationValid = validateField('customLocation', formData.customLocation);
         }
-        if (!formData.date) newErrors.date = 'Date is required';
-        if (!formData.time) newErrors.time = 'Time is required';
-        if (!formData.location) newErrors.location = 'Location is required';
-        if (!formData.duration || formData.duration <= 0) {
-            newErrors.duration = 'Duration must be greater than 0';
-        }
-        if (!formData.subjectName.trim()) newErrors.subjectName = 'Subject name is required';
-        
-        setErrors(newErrors);
-        return Object.keys(newErrors).length === 0;
+
+        return groupIdValid && examinerNameValid && examinerEmailValid &&
+            dateValid && timeValid && locationValid &&
+            durationValid && subjectNameValid && customLocationValid;
     };
 
-    // Handle form submission
+    // Handle form submissionF
     const handleSubmit = (e) => {
         e.preventDefault();
-        
+
+        // Create a copy of the form data for submission
+        const submissionData = { ...formData };
+
+        // If "Other" is selected for location, use the custom location value
+        if (formData.location === 'Other' && formData.customLocation) {
+            submissionData.location = formData.customLocation;
+        }
+
+        // Remove the customLocation field before submitting
+        if ('customLocation' in submissionData) {
+            delete submissionData.customLocation;
+        }
+
         if (validateForm()) {
-            onSubmit(formData);
+            onSubmit(submissionData);
         } else {
             toast.error('Please fix the errors in the form');
         }
@@ -116,15 +252,28 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                         <label htmlFor="groupId" className="block text-sm font-medium text-gray-700 mb-1">
                             Group ID
                         </label>
-                        <input
-                            type="text"
-                            id="groupId"
-                            name="groupId"
-                            value={formData.groupId}
-                            onChange={handleChange}
-                            className={`w-full px-4 py-2.5 rounded-md border ${errors.groupId ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
-                            placeholder="Enter group ID"
-                        />
+                        <div className="relative">
+                            <input
+                                type="text"
+                                id="groupId"
+                                name="groupId"
+                                value={formData.groupId}
+                                onChange={handleChange}
+                                className={`w-full px-4 py-2.5 rounded-md border ${errors.groupId ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
+                                placeholder="Enter group ID"
+                            />
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                {errors.groupId ? (
+                                    <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    </svg>
+                                ) : (
+                                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                            </div>
+                        </div>
                         {errors.groupId && <p className="mt-1 text-sm text-red-600">{errors.groupId}</p>}
                     </div>
 
@@ -133,15 +282,28 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                         <label htmlFor="examinerName" className="block text-sm font-medium text-gray-700 mb-1">
                             Examiner Name
                         </label>
-                        <input
-                            type="text"
-                            id="examinerName"
-                            name="examinerName"
-                            value={formData.examinerName}
-                            onChange={handleChange}
-                            className={`w-full px-4 py-2.5 rounded-md border ${errors.examinerName ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
-                            placeholder="Enter examiner name"
-                        />
+                        <div className="relative">
+                            <input
+                                type="text"
+                                id="examinerName"
+                                name="examinerName"
+                                value={formData.examinerName}
+                                onChange={handleChange}
+                                className={`w-full px-4 py-2.5 rounded-md border ${errors.examinerName ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
+                                placeholder="Enter examiner name"
+                            />
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                {errors.examinerName ? (
+                                    <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    </svg>
+                                ) : (
+                                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                            </div>
+                        </div>
                         {errors.examinerName && <p className="mt-1 text-sm text-red-600">{errors.examinerName}</p>}
                     </div>
 
@@ -150,15 +312,28 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                         <label htmlFor="examinerEmail" className="block text-sm font-medium text-gray-700 mb-1">
                             Examiner Email
                         </label>
-                        <input
-                            type="email"
-                            id="examinerEmail"
-                            name="examinerEmail"
-                            value={formData.examinerEmail}
-                            onChange={handleChange}
-                            className={`w-full px-4 py-2.5 rounded-md border ${errors.examinerEmail ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
-                            placeholder="Enter examiner email"
-                        />
+                        <div className="relative">
+                            <input
+                                type="email"
+                                id="examinerEmail"
+                                name="examinerEmail"
+                                value={formData.examinerEmail}
+                                onChange={handleChange}
+                                className={`w-full px-4 py-2.5 rounded-md border ${errors.examinerEmail ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
+                                placeholder="Enter examiner email"
+                            />
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                {errors.examinerEmail ? (
+                                    <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    </svg>
+                                ) : (
+                                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                            </div>
+                        </div>
                         {errors.examinerEmail && <p className="mt-1 text-sm text-red-600">{errors.examinerEmail}</p>}
                     </div>
 
@@ -167,15 +342,28 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                         <label htmlFor="subjectName" className="block text-sm font-medium text-gray-700 mb-1">
                             Subject Name
                         </label>
-                        <input
-                            type="text"
-                            id="subjectName"
-                            name="subjectName"
-                            value={formData.subjectName}
-                            onChange={handleChange}
-                            className={`w-full px-4 py-2.5 rounded-md border ${errors.subjectName ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
-                            placeholder="Enter subject name"
-                        />
+                        <div className="relative">
+                            <input
+                                type="text"
+                                id="subjectName"
+                                name="subjectName"
+                                value={formData.subjectName}
+                                onChange={handleChange}
+                                className={`w-full px-4 py-2.5 rounded-md border ${errors.subjectName ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
+                                placeholder="Enter subject name"
+                            />
+                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                {errors.subjectName ? (
+                                    <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    </svg>
+                                ) : (
+                                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                            </div>
+                        </div>
                         {errors.subjectName && <p className="mt-1 text-sm text-red-600">{errors.subjectName}</p>}
                     </div>
                 </div>
@@ -195,12 +383,12 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                                     name="date"
                                     value={formData.date}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-2.5 rounded-md border ${errors.date ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none`}
+                                    className={`w-full pl-10 pr-4 py-2.5 rounded-md border ${errors.date ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none`}
                                     style={{ colorScheme: 'light' }}
                                 />
-                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M6 2a1 1 0 00-1 1v1H4a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V6a2 2 0 00-2-2h-1V3a1 1 0 10-2 0v1H7V3a1 1 0 00-1-1zm0 5a1 1 0 000 2h8a1 1 0 100-2H6z" clipRule="evenodd" />
+                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                                     </svg>
                                 </div>
                             </div>
@@ -217,12 +405,12 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                                     name="time"
                                     value={formData.time}
                                     onChange={handleChange}
-                                    className={`w-full px-4 py-2.5 rounded-md border ${errors.time ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none`}
+                                    className={`w-full pl-10 pr-4 py-2.5 rounded-md border ${errors.time ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none`}
                                     style={{ colorScheme: 'light' }}
                                 />
-                                <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-500">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clipRule="evenodd" />
+                                <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
                                 </div>
                             </div>
@@ -236,35 +424,80 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                             <label htmlFor="duration" className="block text-sm font-medium text-gray-700 mb-1">
                                 Duration (minutes)
                             </label>
-                            <input
-                                type="number"
-                                id="duration"
-                                name="duration"
-                                value={formData.duration}
-                                onChange={handleChange}
-                                min="5"
-                                step="5"
-                                className={`w-full px-4 py-2.5 rounded-md border ${errors.duration ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
-                            />
+                            <div className="relative">
+                                <input
+                                    type="number"
+                                    id="duration"
+                                    name="duration"
+                                    value={formData.duration}
+                                    onChange={handleChange}
+                                    min="5"
+                                    step="5"
+                                    className={`w-full px-4 py-2.5 rounded-md border ${errors.duration ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
+                                />
+                            </div>
                             {errors.duration && <p className="mt-1 text-sm text-red-600">{errors.duration}</p>}
                         </div>
                         <div>
                             <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
                                 Location
                             </label>
-                            <select
-                                id="location"
-                                name="location"
-                                value={formData.location}
-                                onChange={handleChange}
-                                className={`w-full px-4 py-2.5 rounded-md border ${errors.location ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
-                            >
-                                <option value="">Select location</option>
-                                {locations.map(loc => (
-                                    <option key={loc} value={loc}>{loc}</option>
-                                ))}
-                            </select>
+                            <div className="relative">
+                                <select
+                                    id="location"
+                                    name="location"
+                                    value={formData.location}
+                                    onChange={(e) => {
+                                        handleChange(e);
+                                        if (e.target.value === 'Other') {
+                                            setShowCustomLocation(true);
+                                        } else {
+                                            setShowCustomLocation(false);
+                                        }
+                                    }}
+                                    className={`w-full px-4 py-2.5 rounded-md border ${errors.location ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500 appearance-none`}
+                                >
+                                    <option value="">Select location</option>
+                                    {locations.map(loc => (
+                                        <option key={loc} value={loc}>{loc}</option>
+                                    ))}
+                                </select>
+                                <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                    </svg>
+                                </div>
+                            </div>
                             {errors.location && <p className="mt-1 text-sm text-red-600">{errors.location}</p>}
+
+                            {/* Custom Location Field with Animation */}
+                            {showCustomLocation && (
+                                <div className="mt-2 transition-all duration-300 ease-in-out">
+                                    <div className="relative">
+                                        <input
+                                            type="text"
+                                            id="customLocation"
+                                            name="customLocation"
+                                            value={formData.customLocation || ''}
+                                            onChange={handleChange}
+                                            className={`w-full px-4 py-2.5 rounded-md border ${errors.customLocation ? 'border-red-500' : formData.customLocation ? 'border-green-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-blue-50`}
+                                            placeholder="Enter custom location"
+                                        />
+                                        <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
+                                            {errors.customLocation ? (
+                                                <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                                </svg>
+                                            ) : (
+                                                <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                                                </svg>
+                                            )}
+                                        </div>
+                                    </div>
+                                    {errors.customLocation && <p className="mt-1 text-sm text-red-600">{errors.customLocation}</p>}
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -315,11 +548,10 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                         type="button"
                         onClick={handleDelete}
                         disabled={isLoading}
-                        className={`px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${
-                            confirmDelete 
-                                ? 'bg-red-600 hover:bg-red-700 text-white' 
+                        className={`px-4 py-2.5 rounded-md text-sm font-medium transition-colors ${confirmDelete
+                                ? 'bg-red-600 hover:bg-red-700 text-white'
                                 : 'bg-white border border-red-300 text-red-600 hover:bg-red-50'
-                        }`}
+                            }`}
                     >
                         {confirmDelete ? 'Confirm Delete' : 'Delete'}
                     </button>

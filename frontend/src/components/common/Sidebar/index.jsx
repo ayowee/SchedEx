@@ -35,7 +35,7 @@ export const Sidebar = ({ onToggle }) => {
     }, [collapsed, onToggle]);
 
     return (
-        <aside className={`${collapsed ? 'w-16' : 'w-64'} bg-white shadow-md fixed top-0 left-0 h-screen border-r border-gray-100 z-10 transition-all duration-300 ease-in-out`}>
+        <aside className={`${collapsed ? 'w-16' : 'w-52'} bg-white shadow-md fixed top-0 left-0 h-screen border-r border-gray-100 z-10 transition-all duration-300 ease-in-out`}>
             <div className="p-4 border-b border-gray-100 flex justify-between items-center">
                 {!collapsed && (
                     <h5 className="text-xl font-bold text-black">Admin Portal</h5>
