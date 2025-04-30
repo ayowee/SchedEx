@@ -17,6 +17,11 @@ import PresentationManagementPage from "./pages/PresentationManagement/Presentat
 import AdminDashboard from './pages/PresentationManagement/AdminDashboard';
 import Calendar from './pages/PresentationManagement/Calendar';
 import AdminLayout from './layouts/AdminLayout';
+import HomePage from './pages/Home/HomePage';
+
+// Auth Pages
+import LoginPage from './pages/Auth/LoginPage';
+import SignupPage from './pages/Auth/SignupPage';
 
 // Examiner Availability Management
 import AvailabilityView from './pages/AvailabilityManagement/AvailabilityView';
@@ -27,7 +32,11 @@ function App() {
       <Router>
         <Routes>
           {/* Combined Routes */}
-          <Route path="/" element={<Navigate to="/admin" replace />} />
+          <Route path="/" element={<HomePage />} />
+          
+          {/* Auth Routes */}
+          <Route path="/user/login" element={<LoginPage />} />
+          <Route path="/user/signup" element={<SignupPage />} />
 
           {/* User Management - Modernized, best-practice routes */}
           <Route path="/admin/users" element={<UserManagement />} />
