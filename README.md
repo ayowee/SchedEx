@@ -1,6 +1,7 @@
 # SchedEx: AI-Powered Viva Scheduling System
 
-![SchedEx Banner]![Logo](https://github.com/user-attachments/assets/5b2d2c62-de87-487b-b7f4-deb2bb2d5b7a)
+![Logo](https://github.com/user-attachments/assets/8cb31cf8-faff-4524-98d6-34c2d7d424f7)
+
 *An intelligent scheduling system for academic institutions*
 
 ## 🚀 Overview
