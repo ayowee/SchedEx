@@ -39,10 +39,10 @@ function App() {
           <Route path="/user/signup" element={<SignupPage />} />
 
           {/* User Management - Modernized, best-practice routes */}
-          <Route path="/admin/users" element={<UserManagement />} />
-          <Route path="/admin/users/active" element={<ActiveUsers />} />
-          <Route path="/admin/users/dashboard" element={<UserDash />} />
-          <Route path="/admin/users/reports" element={<Ureports />} />
+          <Route path="/admin/users" element={<AdminLayout><UserManagement /></AdminLayout>} />
+          <Route path="/admin/users/active" element={<AdminLayout><ActiveUsers /></AdminLayout>} />
+          <Route path="/admin/users/dashboard" element={<AdminLayout><UserDash /></AdminLayout>} />
+          <Route path="/admin/users/reports" element={<AdminLayout><Ureports /></AdminLayout>} />
 
           {/* Sithum */}
           <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
