@@ -4,8 +4,34 @@ import {
     BellIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../../../assets/Logo.png';
+import { useState, useEffect } from 'react';
 
 export const Header = () => {
+    const [user, setUser] = useState(null);
+
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                const token = localStorage.getItem('token');
+                if (!token) return;
+
+                const response = await fetch('/api/auth/me', {
+                    headers: {
+                        'Authorization': `Bearer ${token}`
+                    }
+                });
+
+                if (response.ok) {
+                    const userData = await response.json();
+                    setUser(userData);
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
+        };
+
+        fetchUserData();
+    }, []);
     return (
         <header className="bg-white border-b border-gray-100 py-3 px-6 flex items-center justify-between fixed top-0 right-0 left-0 z-10 ml-64 transition-all duration-300 ease-in-out">
             {/* Logo */}
@@ -39,11 +65,11 @@ export const Header = () => {
                 {/* User profile */}
                 <div className="flex items-center">
                     <div className="h-8 w-8 rounded-full bg-blue-500 flex items-center justify-center text-white font-medium">
-                        S
+                        {user?.fullName ? user.fullName[0].toUpperCase() : '?'}
                     </div>
                     <div className="ml-2 hidden md:block">
-                        <p className="text-sm font-medium text-gray-900">Sithum</p>
-                        <p className="text-xs text-gray-500">Super Admin</p>
+                        <p className="text-sm font-medium text-gray-900">{user?.fullName || 'Loading...'}</p>
+                        <p className="text-xs text-gray-500">{user?.userType || 'Loading...'}</p>
                     </div>
                 </div>
             </div>
