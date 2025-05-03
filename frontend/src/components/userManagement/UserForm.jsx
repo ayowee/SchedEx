@@ -41,7 +41,47 @@ const UserForm = ({ addUser, editingUser, isSidebar }) => {
     "Manage Time Slots",
     "Add Time Slots",
     "Delete Users",
+    "View Reports",
+    "Generate Reports",
+    "Manage Exam Schedule",
+    "View Exam Schedule",
+    "Submit Reschedule Request",
+    "Approve Reschedule Request",
+    "View Student Records",
+    "Manage Student Records",
   ];
+
+  const userTypePermissions = {
+    Admin: [
+      "Create Users",
+      "View Timetable",
+      "Reschedule Requests",
+      "Manage Time Slots",
+      "Add Time Slots",
+      "Delete Users",
+      "View Reports",
+      "Generate Reports",
+      "Manage Exam Schedule",
+      "View Exam Schedule",
+      "Approve Reschedule Request",
+      "View Student Records",
+      "Manage Student Records",
+    ],
+    Examiner: [
+      "View Timetable",
+      "Add Time Slots",
+      "View Reports",
+      "Generate Reports",
+      "Manage Exam Schedule",
+      "View Exam Schedule",
+      "View Student Records",
+    ],
+    Student: [
+      "View Timetable",
+      "Submit Reschedule Request",
+      "View Exam Schedule",
+    ],
+  };
 
   // Validate NIC number
   const validateNIC = (nic) => {
@@ -72,7 +112,14 @@ const UserForm = ({ addUser, editingUser, isSidebar }) => {
           : prev.permissions.filter((perm) => perm !== value),
       }));
     } else {
-      setFormData((prev) => ({ ...prev, [name]: value }));
+      setFormData((prev) => {
+        const newData = { ...prev, [name]: value };
+        // If changing user type, update permissions automatically
+        if (name === 'userType' && value in userTypePermissions) {
+          newData.permissions = userTypePermissions[value];
+        }
+        return newData;
+      });
     }
     setFormTouched(true);
   };
@@ -128,10 +175,12 @@ const UserForm = ({ addUser, editingUser, isSidebar }) => {
   return (
     <form
       onSubmit={handleSubmit}
-      className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg p-8 space-y-8"
+      className="max-w-2xl mx-auto bg-white rounded-xl shadow-lg flex flex-col h-[calc(100vh-6rem)]"
     >
-      {/* Avatar/Icon */}
-      <div className="flex flex-col items-center mb-2">
+      {/* Form Content Scrollable Area */}
+      <div className="flex-1 overflow-y-auto p-8 space-y-8">
+        {/* Avatar/Icon */}
+        <div className="flex flex-col items-center mb-2">
         <div className="w-16 h-16 rounded-full bg-blue-100 flex items-center justify-center mb-2">
           <UserIcon className="w-10 h-10 text-blue-500" />
         </div>
@@ -254,18 +303,21 @@ const UserForm = ({ addUser, editingUser, isSidebar }) => {
         </div>
       </div>
 
-      {/* Actions */}
-      {submitError && (
-        <div className="p-3 rounded bg-red-50 border border-red-200 text-red-600 text-sm">
-          {submitError}
-        </div>
-      )}
-      {submitSuccess && (
-        <div className="p-3 rounded bg-green-50 border border-green-200 text-green-600 text-sm">
-          User saved successfully!
-        </div>
-      )}
-      <div className="flex justify-end gap-4 pt-6 border-t border-gray-100 mt-6">
+      </div>
+      
+      {/* Fixed Actions Bar */}
+      <div className="flex flex-col gap-2 p-4 border-t border-gray-100 bg-white">
+        {submitError && (
+          <div className="p-3 rounded bg-red-50 border border-red-200 text-red-600 text-sm">
+            {submitError}
+          </div>
+        )}
+        {submitSuccess && (
+          <div className="p-3 rounded bg-green-50 border border-green-200 text-green-600 text-sm">
+            User saved successfully!
+          </div>
+        )}
+        <div className="flex justify-end gap-4">
         <button
           type="button"
           className="px-5 py-2.5 rounded-md bg-gray-100 text-gray-700 font-medium hover:bg-gray-200 transition"
@@ -286,6 +338,7 @@ const UserForm = ({ addUser, editingUser, isSidebar }) => {
         >
           {submitting ? 'Saving...' : editingUser ? 'Update User' : 'Add User'}
         </button>
+      </div>
       </div>
     </form>
   );

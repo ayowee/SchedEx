@@ -15,6 +15,7 @@ app.use(express.json());
 
 connectDB();
 
+app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/users', require('./routes/userRoutes'));
 app.use('/api/presentations', require('./routes/presentationRoutes'));
 app.use('/api/activities', require('./routes/activityRoutes'));
