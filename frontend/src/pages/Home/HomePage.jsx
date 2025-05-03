@@ -25,7 +25,6 @@ const HomePage = () => {
             </nav>
             <div className="flex items-center space-x-4">
               <Link to="/user/login" className="text-blue-600 hover:text-blue-800 font-medium">Log In</Link>
-              <Link to="/user/signup" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md font-medium transition-colors">Sign Up</Link>
             </div>
           </div>
         </div>
@@ -43,7 +42,7 @@ const HomePage = () => {
                 SchedEx is an AI-powered scheduling system that automates presentation time slots while considering examiner availability, location constraints, and rescheduling needs.
               </p>
               <div className="mt-8 flex flex-col sm:flex-row sm:space-x-4 space-y-4 sm:space-y-0">
-                <Link to="/user/signup" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium text-center transition-colors">
+                <Link to="/user/login" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-md font-medium text-center transition-colors">
                   Get Started
                 </Link>
                 <a href="#features" className="bg-white hover:bg-gray-50 text-blue-600 border border-blue-200 px-6 py-3 rounded-md font-medium text-center transition-colors">
