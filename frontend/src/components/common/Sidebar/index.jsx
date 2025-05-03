@@ -1,5 +1,5 @@
 // src/components/admin/Sidebar/index.jsx
-import { NavLink } from 'react-router-dom';
+import { NavLink, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { 
     HomeIcon, 
@@ -12,11 +12,15 @@ import {
     UserPlusIcon,
     ArrowRightOnRectangleIcon,
     ChevronLeftIcon,
-    ChevronRightIcon
+    ChevronRightIcon,
+    ExclamationTriangleIcon
 } from '@heroicons/react/24/outline';
+import Modal from '../../ui/modal';
 
 export const Sidebar = ({ onToggle }) => {
     const [collapsed, setCollapsed] = useState(false);
+    const [showLogoutModal, setShowLogoutModal] = useState(false);
+    const navigate = useNavigate();
 
     const toggleSidebar = () => {
         const newCollapsedState = !collapsed;
@@ -228,9 +232,9 @@ export const Sidebar = ({ onToggle }) => {
                         )}
                     </NavLink>
                     
-                    <NavLink
-                        to="/logout"
-                        className={`flex items-center p-2 rounded-lg transition-colors bg-red-600 text-white hover:bg-red-700 mt-4 group relative ${collapsed ? 'justify-center' : ''}`}
+                    <button
+                        onClick={() => setShowLogoutModal(true)}
+                        className={`flex items-center p-2 rounded-lg transition-colors bg-red-600 text-white hover:bg-red-700 mt-4 group relative w-full ${collapsed ? 'justify-center' : ''}`}
                     >
                         <ArrowRightOnRectangleIcon className={`w-5 h-5 ${!collapsed && 'mr-3'}`} />
                         {!collapsed && "Logout"}
@@ -239,7 +243,41 @@ export const Sidebar = ({ onToggle }) => {
                                 Logout
                             </span>
                         )}
-                    </NavLink>
+                    </button>
+
+                    {/* Logout Confirmation Modal */}
+                    <Modal
+                        isOpen={showLogoutModal}
+                        onClose={() => setShowLogoutModal(false)}
+                        title="Confirm Logout"
+                        size="sm"
+                    >
+                        <div className="p-6">
+                            <div className="flex items-center justify-center mb-4">
+                                <ExclamationTriangleIcon className="h-12 w-12 text-yellow-500" />
+                            </div>
+                            <p className="text-center text-gray-700 mb-6">
+                                Are you sure you want to logout?
+                            </p>
+                            <div className="flex justify-center space-x-4">
+                                <button
+                                    onClick={() => {
+                                        localStorage.removeItem('token');
+                                        navigate('/');
+                                    }}
+                                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                                >
+                                    Yes, Logout
+                                </button>
+                                <button
+                                    onClick={() => setShowLogoutModal(false)}
+                                    className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    </Modal>
                 </nav>
             </div>
         </aside>
