@@ -54,6 +54,34 @@ exports.login = async (req, res) => {
   }
 };
 
+exports.me = async (req, res) => {
+  try {
+    const token = req.headers.authorization?.split(' ')[1];
+    if (!token) {
+      return res.status(401).json({ message: 'No token provided' });
+    }
+
+    const decoded = jwt.verify(token, JWT_SECRET);
+    const user = await User.findById(decoded.userId);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json({
+      id: user._id,
+      email: user.email,
+      userType: user.userType,
+      fullName: user.fullName
+    });
+  } catch (error) {
+    if (error.name === 'JsonWebTokenError') {
+      return res.status(401).json({ message: 'Invalid token' });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 exports.setInitialPassword = async (req, res) => {
   try {
     const { email, password, confirmPassword } = req.body;
