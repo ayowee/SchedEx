@@ -64,11 +64,26 @@ exports.createSlots = async (req, res) => {
         throw new Error('Invalid date format');
       }
 
+      // Process exam duty release if provided
+      let examDutyRelease = undefined;
+      if (slot.examDutyRelease && slot.examDutyRelease.isReleased) {
+        if (!slot.examDutyRelease.reason) {
+          throw new Error('Reason is required for exam duty release');
+        }
+        examDutyRelease = {
+          isReleased: true,
+          reason: slot.examDutyRelease.reason,
+          approvalStatus: 'pending',
+        };
+      }
+
       return {
         date,
         startTime: slot.startTime,
         endTime: slot.endTime,
-        status: slot.status || 'available'
+        status: slot.status || 'available',
+        notes: slot.notes || '',
+        examDutyRelease
       };
     });
     
