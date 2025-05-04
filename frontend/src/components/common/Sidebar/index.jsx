@@ -96,7 +96,7 @@ export const Sidebar = ({ onToggle }) => {
                     </NavLink>
                     
                     <NavLink
-                        to="/admin/schedular"
+                        to="/admin/scheduler"
                         end
                         className={({ isActive }) =>
                             `flex items-center p-2 rounded-lg transition-colors group relative ${isActive
@@ -106,10 +106,10 @@ export const Sidebar = ({ onToggle }) => {
                         }
                     >
                         <CalendarIcon className={`w-5 h-5 ${!collapsed && 'mr-3'}`} />
-                        {!collapsed && "Schedule"}
+                        {!collapsed && "Admin Scheduler"}
                         {collapsed && (
                             <span className="absolute left-full ml-2 w-auto p-2 min-w-max rounded-md shadow-md text-gray-800 bg-white text-xs font-medium transition-all duration-100 origin-left scale-0 group-hover:scale-100 z-20">
-                                Schedule
+                                Admin Scheduler
                             </span>
                         )}
                     </NavLink>

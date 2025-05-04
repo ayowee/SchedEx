@@ -8,7 +8,7 @@ export const statusOptions = [
     {
         value: 'confirmed',
         label: 'Confirmed',
-        color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100'
+        color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100'
     },
     {
         value: 'canceled',
@@ -18,6 +18,6 @@ export const statusOptions = [
     {
         value: 'completed',
         label: 'Completed',
-        color: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100'
+        color: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100'
     }
 ];
