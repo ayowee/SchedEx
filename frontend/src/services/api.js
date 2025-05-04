@@ -104,6 +104,17 @@ export const userService = {
     }
   },
 
+  // Get all examiners
+  getAllExaminers: async () => {
+    try {
+      const response = await api.get('/users?type=Examiner');
+      return response.data;
+    } catch (error) {
+      console.error('Error fetching examiners:', error);
+      throw error;
+    }
+  },
+
   // Create a new user
   createUser: async (userData) => {
     try {

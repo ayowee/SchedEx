@@ -2,9 +2,20 @@ const User = require('../models/User');
 
 exports.getAllUsers = async (req, res) => {
   try {
-    const users = await User.find();
+    // Create query object to support filtering
+    const query = {};
+    
+    // Filter by user type if specified
+    if (req.query.type) {
+      // Use userType from model and handle case-insensitivity
+      query.userType = new RegExp(req.query.type, 'i');
+    }
+    
+    // Execute the query with filters
+    const users = await User.find(query);
     res.json(users);
   } catch (error) {
+    console.error('Error fetching users:', error);
     res.status(500).json({ error: 'Error fetching users' });
   }
 };
