@@ -1,12 +1,17 @@
 // src/components/common/Header/index.jsx
 import { 
     MagnifyingGlassIcon, 
-    BellIcon
+    BellIcon,
+    XMarkIcon
 } from '@heroicons/react/24/outline';
 import Logo from '../../../assets/Logo.png';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { useNotifications } from '../../../context/NotificationContext';
 
 export const Header = () => {
+    const [showNotifications, setShowNotifications] = useState(false);
+    const { notifications } = useNotifications();
+    const notificationRef = useRef(null);
     const [user, setUser] = useState(null);
 
     useEffect(() => {
@@ -57,10 +62,48 @@ export const Header = () => {
             {/* Right side - Actions */}
             <div className="flex items-center space-x-4">
                 {/* Notifications */}
-                <button className="p-2 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 relative">
-                    <BellIcon className="h-5 w-5" />
-                    <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
-                </button>
+                <div className="relative" ref={notificationRef}>
+                    <button 
+                        onClick={() => setShowNotifications(!showNotifications)}
+                        className="p-2 rounded-full text-gray-500 hover:text-gray-900 hover:bg-gray-100 relative"
+                    >
+                        <BellIcon className="h-5 w-5" />
+                        {notifications.length > 0 && (
+                            <span className="absolute top-0 right-0 block h-2 w-2 rounded-full bg-red-500 ring-2 ring-white"></span>
+                        )}
+                    </button>
+
+                    {/* Notification Dropdown */}
+                    {showNotifications && (
+                        <div className="absolute right-0 mt-2 w-80 bg-white rounded-lg shadow-lg border border-gray-100 z-50">
+                            <div className="p-4 border-b border-gray-100 flex justify-between items-center">
+                                <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
+                                <button 
+                                    onClick={() => setShowNotifications(false)}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    <XMarkIcon className="h-5 w-5" />
+                                </button>
+                            </div>
+                            <div className="max-h-96 overflow-y-auto">
+                                {notifications.length === 0 ? (
+                                    <div className="p-4 text-center text-gray-500 text-sm">
+                                        No new notifications
+                                    </div>
+                                ) : (
+                                    <div className="divide-y divide-gray-100">
+                                        {notifications.map((notification, index) => (
+                                            <div key={index} className="p-4 hover:bg-gray-50">
+                                                <p className="text-sm text-gray-900">{notification.message}</p>
+                                                <p className="text-xs text-gray-500 mt-1">{notification.timestamp}</p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
+                </div>
                 
                 {/* User profile */}
                 <div className="flex items-center">
