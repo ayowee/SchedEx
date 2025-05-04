@@ -2,6 +2,8 @@ import React, { useState, useMemo } from 'react';
 import { UserIcon, PencilSquareIcon, TrashIcon, ArrowDownIcon, ArrowUpIcon, ArrowPathIcon, EyeIcon, XMarkIcon, MagnifyingGlassIcon, DocumentArrowDownIcon } from '@heroicons/react/24/solid';
 import jsPDF from 'jspdf';
 import { toast } from 'react-toastify';
+import SchedExLogo from '../../assets/Logo.png';
+import * as XLSX from 'xlsx';
 
 const statusColors = {
   Admin: 'bg-blue-100 text-blue-700',
@@ -19,29 +21,89 @@ const avatarColors = [
 ];
 
 const generatePDF = (user) => {
-  const doc = new jsPDF();
-  
-  // Add title
-  doc.setFontSize(20);
-  doc.text('User Details', 105, 20, { align: 'center' });
-  
-  // Add user info
-  doc.setFontSize(12);
-  doc.text(`Full Name: ${user.fullName}`, 20, 40);
-  doc.text(`NIC: ${user.nic}`, 20, 50);
-  doc.text(`Email: ${user.email}`, 20, 60);
-  doc.text(`Contact Number: ${user.contactNumber}`, 20, 70);
-  doc.text(`User Type: ${user.userType}`, 20, 80);
-  
-  // Add permissions
-  doc.text('Permissions:', 20, 100);
-  user.permissions.forEach((permission, index) => {
-    doc.text(`• ${permission}`, 30, 110 + (index * 10));
-  });
-  
-  // Save the PDF
-  doc.save(`${user.fullName.replace(/\s+/g, '_')}_details.pdf`);
-  toast.success('PDF generated successfully');
+  try {
+    // Create new jsPDF instance
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Add SchedEx logo on white background
+    const logoWidth = 40;
+    const logoHeight = 20;
+    const logoX = (pageWidth - logoWidth) / 2;
+    const logoY = 10;
+    doc.addImage(SchedExLogo, 'PNG', logoX, logoY, logoWidth, logoHeight);
+    
+    // Add title
+    doc.setTextColor(59, 130, 246); // Blue-500
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('User Profile Details', pageWidth / 2, 40, { align: 'center' });
+    
+    // Reset text color for content
+    doc.setTextColor(0, 0, 0);
+    
+    // Main content section
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Personal Information', 20, 55);
+    
+    // Add divider line
+    doc.setDrawColor(229, 231, 235); // Gray-200
+    doc.line(20, 58, pageWidth - 20, 58);
+    
+    // Basic user details with user type at the top
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('User Type:', 20, 68);
+    doc.setFont('helvetica', 'normal');
+    doc.text(user.userType, 70, 68);
+
+    const details = [
+      { label: 'Full Name', value: user.fullName },
+      { label: 'NIC', value: user.nic },
+      { label: 'Email', value: user.email },
+      { label: 'Contact', value: user.contactNumber }
+    ];
+    
+    details.forEach((detail, index) => {
+      const y = 80 + (index * 12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${detail.label}:`, 20, y);
+      doc.setFont('helvetica', 'normal');
+      doc.text(detail.value || 'N/A', 70, y);
+    });
+    
+    // Permissions section
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Permissions & Access', 20, 125);
+    doc.line(20, 128, pageWidth - 20, 128);
+    
+    // Add permissions
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'normal');
+    if (user.permissions && user.permissions.length > 0) {
+      user.permissions.forEach((permission, index) => {
+        const y = 138 + (index * 10);
+        doc.text(`• ${permission}`, 25, y);
+      });
+    } else {
+      doc.text('No permissions assigned', 25, 138);
+    }
+    
+    // Footer
+    const timestamp = new Date().toLocaleString();
+    doc.setFontSize(8);
+    doc.setTextColor(156, 163, 175); // Gray-400
+    doc.text(`Generated on ${timestamp}`, pageWidth - 20, doc.internal.pageSize.height - 10, { align: 'right' });
+    
+    // Save the PDF
+    doc.save(`${user.fullName.replace(/\s+/g, '_')}_profile.pdf`);
+    toast.success('PDF profile generated successfully');
+  } catch (error) {
+    console.error('Error generating PDF:', error);
+    toast.error('Failed to generate PDF. Please try again.');
+  }
 };
 
 function getInitials(name = '') {
@@ -112,16 +174,72 @@ const UserTable = ({ users = [], editUser = () => {}, deleteUser = () => {}, loa
     }
   };
 
-  // Export CSV
-  const exportCSV = () => {
-    const header = ['Full Name', 'Email', 'Type'];
-    const rows = sortedUsers.map((u) => [u.fullName, u.email, u.userType]);
-    const csv = [header, ...rows].map((r) => r.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'users.csv';
-    a.click();
+  // Export Excel with styling
+  const exportToExcel = () => {
+    // Prepare the data
+    const header = ['Full Name', 'Email', 'User Type', 'Permissions'];
+    const rows = sortedUsers.map(user => [
+      user.fullName,
+      user.email,
+      user.userType,
+      (user.permissions || []).join(', ')
+    ]);
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet([header, ...rows]);
+
+    // Set column widths
+    const colWidths = [{ wch: 20 }, { wch: 30 }, { wch: 15 }, { wch: 40 }];
+    ws['!cols'] = colWidths;
+
+    // Style the header row
+    const headerStyle = {
+      font: { bold: true, color: { rgb: 'FFFFFF' } },
+      fill: { fgColor: { rgb: '3B82F6' } }, // Blue-500
+      alignment: { horizontal: 'center' },
+      border: {
+        top: { style: 'thin' },
+        bottom: { style: 'thin' },
+        left: { style: 'thin' },
+        right: { style: 'thin' }
+      }
+    };
+
+    // Apply header style
+    for (let i = 0; i < header.length; i++) {
+      const cellRef = XLSX.utils.encode_cell({ r: 0, c: i });
+      if (!ws[cellRef]) ws[cellRef] = {};
+      ws[cellRef].s = headerStyle;
+    }
+
+    // Style the data rows
+    const dataStyle = {
+      border: {
+        top: { style: 'thin' },
+        bottom: { style: 'thin' },
+        left: { style: 'thin' },
+        right: { style: 'thin' }
+      },
+      alignment: { vertical: 'center' }
+    };
+
+    // Apply data style to all cells
+    for (let i = 1; i <= rows.length; i++) {
+      for (let j = 0; j < header.length; j++) {
+        const cellRef = XLSX.utils.encode_cell({ r: i, c: j });
+        if (!ws[cellRef]) ws[cellRef] = {};
+        ws[cellRef].s = dataStyle;
+      }
+    }
+
+    // Add the worksheet to the workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Users');
+
+    // Generate Excel file
+    const timestamp = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `SchedEx_Users_${timestamp}.xlsx`);
+    toast.success('Excel file generated successfully');
   };
 
   // Loading skeleton
@@ -154,11 +272,11 @@ const UserTable = ({ users = [], editUser = () => {}, deleteUser = () => {}, loa
               <option value="Student">Student</option>
             </select>
             <button
-              onClick={exportCSV}
+              onClick={exportToExcel}
               className="flex items-center gap-2 px-4 py-2 rounded-md bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-200 text-sm font-medium transition"
-              aria-label="Export users as CSV"
+              aria-label="Export users as Excel"
             >
-              Export CSV
+              Export Excel
             </button>
           </div>
         </div>
