@@ -212,8 +212,8 @@ export default function UserManagementPage() {
           {/* Dashboard Widgets */}
           <UserMetrics stats={stats} />
           <div className="flex flex-col lg:flex-row gap-8">
-            <UserCharts userTypeData={userTypeData} monthlyData={monthlyData} />
-            <UserRecentActivity activities={recentActivity} />
+          <UserCharts userTypeData={userTypeData} monthlyData={monthlyData} />
+          <UserRecentActivity activities={recentActivity} />
           </div>
 
           {/* User Management Actions */}
