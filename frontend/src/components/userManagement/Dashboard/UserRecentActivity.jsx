@@ -3,7 +3,7 @@ import { UserIcon } from '@heroicons/react/24/solid';
 export default function UserRecentActivity({ activities }) {
     // activities: [{ id, user: { name, avatar, color }, action, subject, time }]
     return (
-        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8">
+        <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-8 lg:w-1/2">
             <h3 className="text-lg font-semibold mb-4 text-gray-900">Recent User Activity</h3>
             <ul className="divide-y divide-gray-100">
                 {activities.length === 0 ? (
