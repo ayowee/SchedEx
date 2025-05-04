@@ -1,4 +1,4 @@
-// src/App.js\\
+// src/App.js
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { HelmetProvider } from 'react-helmet-async';
 import { NotificationProvider } from './context/NotificationContext';
@@ -12,6 +12,7 @@ import UserDash from "./pages/UserManagement/UserDash";
 import UserManagement from "./pages/UserManagement/UserManagementPage";
 import ActiveUsers from "./pages/UserManagement/ActiveUsers";
 import Ureports from "./pages/UserManagement/Ureports";
+import ExaminerDashboard from "./pages/ExaminerManagement/ExaminerDashboard";
 
 // Sithum
 import PresentationManagementPage from "./pages/PresentationManagement/PresentationManagementPage";
@@ -51,6 +52,7 @@ function App() {
             <Route path="/admin/presentations" element={<AdminLayout><PresentationManagementPage /></AdminLayout>} />
             <Route path="/admin/scheduler" element={<AdminLayout><Calendar /></AdminLayout>} />
             <Route path="/admin/availability" element={<AvailabilityView />} />
+            <Route path="/admin/examiners" element={<ExaminerDashboard />} />
           </Routes>
         </Router>
       </NotificationProvider>
