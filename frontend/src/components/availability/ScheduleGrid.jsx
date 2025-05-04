@@ -188,7 +188,7 @@ const ScheduleGrid = ({
   };
 
   return (
-    <Card>
+    <Card sx={{ height: '100%', display: 'flex', flexDirection: 'column', width: '100%' }}>
       <CardHeader 
         title="Availability Schedule" 
         action={
@@ -203,7 +203,7 @@ const ScheduleGrid = ({
         }
       />
       <Divider />
-      <CardContent>
+      <CardContent sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', overflow: 'auto' }}>
         {/* Filters */}
         <Box sx={{ mb: 3 }}>
           <Grid container spacing={2} alignItems="center">
@@ -228,7 +228,7 @@ const ScheduleGrid = ({
               </LocalizationProvider>
             </Grid>
             <Grid item xs={12} sm={4}>
-              <FormControl fullWidth size="small">
+            <FormControl size="small" sx={{ width: '200px' }}>
                 <InputLabel>Status</InputLabel>
                 <Select
                   value={filters.status}
@@ -246,8 +246,8 @@ const ScheduleGrid = ({
         </Box>
 
         {/* Slots Table */}
-        <TableContainer component={Paper}>
-          <Table sx={{ minWidth: 650 }} size="small">
+        <TableContainer component={Paper} sx={{ flexGrow: 1, display: 'flex', flexDirection: 'column', mb: 2 }}>
+          <Table sx={{ minWidth: 650, tableLayout: 'fixed' }} size="small">
             <TableHead>
               <TableRow>
                 <TableCell>Date</TableCell>

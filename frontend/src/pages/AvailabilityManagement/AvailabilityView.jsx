@@ -159,10 +159,10 @@ const AvailabilityView = () => {
         <title>Examiner Availability Management | SchedEx</title>
       </Helmet>
       
-      <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
-        <Grid container spacing={3}>
-          <Grid item xs={12}>
-            <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column' }}>
+      <Container maxWidth="lg" sx={{ mt: 4, mb: 4, height: 'calc(100vh - 120px)', display: 'flex', flexDirection: 'column' }}>
+        <Grid container spacing={3} sx={{ flexGrow: 1 }}>
+          <Grid item xs={12} sx={{ height: '100%' }}>
+            <Paper sx={{ p: 2, display: 'flex', flexDirection: 'column', height: '100%' }}>
               {/* Error and Success Messages */}
               {error && (
                 <Alert severity="error" onClose={() => setError(null)} sx={{ mb: 2 }}>
@@ -198,7 +198,7 @@ const AvailabilityView = () => {
               />
               
               {/* Tab Content */}
-              <Box sx={{ mt: 2 }}>
+              <Box sx={{ mt: 2, flexGrow: 1, display: 'flex', overflow: 'hidden' }}>
                 {activeTab === 0 && (
                   <ScheduleGrid
                     examinerId={selectedExaminer?._id}

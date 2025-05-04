@@ -8,6 +8,21 @@ const SlotSchema = new mongoose.Schema({
     type: String, 
     enum: ['available', 'booked', 'unavailable'],
     default: 'available'
+  },
+  notes: { type: String }, // Optional notes for the slot
+  examDutyRelease: {
+    isReleased: { type: Boolean, default: false },
+    reason: { type: String },
+    approvalStatus: { 
+      type: String, 
+      enum: ['pending', 'approved', 'rejected'],
+      default: 'pending'
+    },
+    approvedBy: { 
+      type: mongoose.Schema.Types.ObjectId, 
+      ref: 'User' 
+    },
+    approvalDate: { type: Date }
   }
 });
 
