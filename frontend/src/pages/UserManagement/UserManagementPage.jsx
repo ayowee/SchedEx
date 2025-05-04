@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { useNotifications } from "../../context/NotificationContext";
 import UserForm from "../../components/userManagement/UserForm";
 import UserTable from "../../components/userManagement/UserTable";
 import { userService } from "../../services/api";
@@ -44,6 +45,7 @@ const initialUsers = [
 ];
 
 export default function UserManagementPage() {
+  const { addNotification } = useNotifications();
   const [users, setUsers] = useState(initialUsers);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -100,30 +102,44 @@ export default function UserManagementPage() {
       if (editingUser) {
         const updatedUser = await userService.updateUser(editingUser._id, user);
         setUsers(users.map((u) => (u._id === editingUser._id ? updatedUser : u)));
-        setRecentActivity([
-          {
-            id: Date.now(),
-            user: { name: user.fullName, avatar: user.fullName[0], color: 'bg-blue-500' },
-            action: 'updated user',
-            subject: user.email,
-            time: 'Just now',
-          },
-          ...recentActivity,
-        ]);
+        
+        const newActivity = {
+          id: Date.now(),
+          user: { name: user.fullName, avatar: user.fullName[0], color: 'bg-blue-500' },
+          action: 'updated user',
+          subject: user.email,
+          time: 'Just now',
+        };
+        
+        // Add to recent activity panel
+        setRecentActivity(prev => [newActivity, ...prev]);
+        
+        // Send notification to header
+        addNotification({
+          message: `User ${user.fullName} was updated`,
+          timestamp: new Date().toLocaleTimeString()
+        });
         setEditingUser(null);
       } else {
         const newUser = await userService.createUser(user);
         setUsers([...users, newUser]);
-        setRecentActivity([
-          {
-            id: Date.now(),
-            user: { name: user.fullName, avatar: user.fullName[0], color: 'bg-green-500' },
-            action: 'added user',
-            subject: user.email,
-            time: 'Just now',
-          },
-          ...recentActivity,
-        ]);
+        
+        const newActivity = {
+          id: Date.now(),
+          user: { name: user.fullName, avatar: user.fullName[0], color: 'bg-green-500' },
+          action: 'added user',
+          subject: user.email,
+          time: 'Just now',
+        };
+        
+        // Add to recent activity panel
+        setRecentActivity(prev => [newActivity, ...prev]);
+        
+        // Send notification to header
+        addNotification({
+          message: `New user ${user.fullName} was added`,
+          timestamp: new Date().toLocaleTimeString()
+        });
       }
       setFormSubmitted(true);
       setShowForm(false);
@@ -140,16 +156,28 @@ export default function UserManagementPage() {
     try {
       await userService.deleteUser(user._id);
       setUsers(users.filter((u) => u._id !== user._id));
-      setRecentActivity([
-        {
-          id: Date.now(),
-          user: { name: user.fullName, avatar: user.fullName[0], color: 'bg-red-500' },
-          action: 'deleted user',
-          subject: user.email,
-          time: 'Just now',
-        },
-        ...recentActivity,
-      ]);
+      
+      const newActivity = {
+        id: Date.now(),
+        user: { name: user.fullName, avatar: user.fullName[0], color: 'bg-red-500' },
+        action: 'deleted user',
+        subject: user.email,
+        time: 'Just now',
+      };
+      
+      const notification = {
+        message: `User ${user.fullName} was deleted`,
+        timestamp: new Date().toLocaleTimeString(),
+      };
+      
+      // Add to recent activity panel
+      setRecentActivity(prev => [newActivity, ...prev]);
+      
+      // Send notification to header
+      addNotification({
+        message: `User ${user.fullName} was deleted`,
+        timestamp: new Date().toLocaleTimeString()
+      });
       setError(null);
     } catch (error) {
       console.error('Error deleting user:', error);
