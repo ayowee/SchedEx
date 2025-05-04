@@ -217,7 +217,6 @@ const Calendar = () => {
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [draggedEvent, setDraggedEvent] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
-    const [highlightedDate, setHighlightedDate] = useState(null);
 
     const calendarRef = useRef(null);
     const [calendarApi, setCalendarApi] = useState(null);
