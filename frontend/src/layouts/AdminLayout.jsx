@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { Sidebar } from '../components/common/Sidebar';
 import Header from '../components/common/Header';
 import Footer from '../components/common/Footer';
+import ChatbotButton from '../components/chatbot/ChatbotButton';
 
 const AdminLayout = ({ children }) => {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -35,6 +36,7 @@ const AdminLayout = ({ children }) => {
         </main>
         <Footer />
       </div>
+      <ChatbotButton />
     </div>
   );
 };
