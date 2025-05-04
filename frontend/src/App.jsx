@@ -47,7 +47,7 @@ function App() {
           {/* Sithum */}
           <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
           <Route path="/admin/presentations" element={<AdminLayout><PresentationManagementPage /></AdminLayout>} />
-          <Route path="/admin/schedular" element={<AdminLayout><Calendar /></AdminLayout>} />
+          <Route path="/admin/scheduler" element={<AdminLayout><Calendar /></AdminLayout>} />
           <Route path="/admin/availability" element={<AvailabilityView />} />
         </Routes>
       </Router>
