@@ -16,6 +16,7 @@ import Ureports from "./pages/UserManagement/Ureports";
 import PresentationManagementPage from "./pages/PresentationManagement/PresentationManagementPage";
 import AdminDashboard from './pages/PresentationManagement/AdminDashboard';
 import Calendar from './pages/PresentationManagement/Calendar';
+import StudentDashboard from './pages/PresentationManagement/StudentDashboard';
 import AdminLayout from './layouts/AdminLayout';
 import HomePage from './pages/Home/HomePage';
 
@@ -48,6 +49,7 @@ function App() {
           <Route path="/admin" element={<AdminLayout><AdminDashboard /></AdminLayout>} />
           <Route path="/admin/presentations" element={<AdminLayout><PresentationManagementPage /></AdminLayout>} />
           <Route path="/admin/scheduler" element={<AdminLayout><Calendar /></AdminLayout>} />
+          <Route path="/admin/students" element={<AdminLayout><StudentDashboard /></AdminLayout>} />
           <Route path="/admin/availability" element={<AvailabilityView />} />
         </Routes>
       </Router>
