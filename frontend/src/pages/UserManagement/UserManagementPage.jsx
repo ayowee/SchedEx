@@ -211,8 +211,10 @@ export default function UserManagementPage() {
         <>
           {/* Dashboard Widgets */}
           <UserMetrics stats={stats} />
-          <UserCharts userTypeData={userTypeData} monthlyData={monthlyData} />
-          <UserRecentActivity activities={recentActivity} />
+          <div className="flex flex-col lg:flex-row gap-8">
+            <UserCharts userTypeData={userTypeData} monthlyData={monthlyData} />
+            <UserRecentActivity activities={recentActivity} />
+          </div>
 
           {/* User Management Actions */}
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
