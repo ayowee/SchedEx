@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { 
   Box, 
   Button, 
@@ -39,7 +40,7 @@ import { format, addDays, addWeeks, addMonths, isValid, parseISO, isSameDay, isB
 import ExamDutyReleaseForm from './ExamDutyReleaseForm';
 
 const SlotCreator = ({ examinerId, onSlotsCreated }) => {
-  const [patternType, setPatternType] = useState('single');
+  const [patternType, setPatternType] = useState('daily');
   const [startDate, setStartDate] = useState(null);
   const [endDate, setEndDate] = useState(null);
   const [timeBlocks, setTimeBlocks] = useState([{ startTime: '', endTime: '', notes: '' }]);
@@ -47,6 +48,7 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
   const [preview, setPreview] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [warnings, setWarnings] = useState([]);
+  const [existingSlots, setExistingSlots] = useState([]);
   const [showExamDutyRelease, setShowExamDutyRelease] = useState(false);
   const [examDutyReleaseFormData, setExamDutyReleaseFormData] = useState({
     isReleased: false,
@@ -63,11 +65,72 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
   // Reset form when examinerId changes
   useEffect(() => {
     resetForm();
+    if (examinerId) {
+      fetchExistingSlots();
+    }
   }, [examinerId]);
+  
+  // Fetch existing slots for all examiners
+  const fetchExistingSlots = async () => {
+    try {
+      // First get the current examiner's slots
+      if (examinerId) {
+        const examinerResponse = await axios.get(`http://localhost:5000/api/availability/${examinerId}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        if (examinerResponse.data && examinerResponse.data.slots) {
+          // Mark these slots as belonging to the current examiner
+          const currentExaminerSlots = examinerResponse.data.slots.map(slot => ({
+            ...slot,
+            isCurrentExaminer: true
+          }));
+          
+          // Now get all availability records to check for other examiners
+          const allResponse = await axios.get(`http://localhost:5000/api/availability`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('token')}`
+            }
+          });
+          
+          if (allResponse.data && Array.isArray(allResponse.data)) {
+            // Get slots from other examiners
+            const otherExaminersSlots = [];
+            
+            allResponse.data.forEach(record => {
+              // Skip the current examiner as we already have their slots
+              if (record.examinerId !== examinerId && record.slots && record.slots.length > 0) {
+                // Add examiner info to each slot
+                const slotsWithExaminerInfo = record.slots.map(slot => ({
+                  ...slot,
+                  examinerName: record.examinerName || 'Unknown Examiner',
+                  examinerId: record.examinerId,
+                  isCurrentExaminer: false
+                }));
+                
+                otherExaminersSlots.push(...slotsWithExaminerInfo);
+              }
+            });
+            
+            // Combine current examiner slots with other examiners' slots
+            setExistingSlots([...currentExaminerSlots, ...otherExaminersSlots]);
+          } else {
+            // If we couldn't get all examiners, at least use the current examiner's slots
+            setExistingSlots(currentExaminerSlots);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching existing slots:', error);
+      // Don't set an error - just log it since this is just for warnings
+    }
+  };
 
   // Generate preview when form values change
   useEffect(() => {
-    if (patternType !== 'single' && startDate && endDate && timeBlocks.length > 0) {
+    if (startDate && endDate && timeBlocks.length > 0) {
       generatePreview();
     }
   }, [patternType, startDate, endDate, timeBlocks]);
@@ -129,6 +192,39 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
     });
     
     return overlaps;
+  };
+  
+  // Check for duplicate start times with existing slots in the database
+  const checkDuplicateStartTimes = (slots) => {
+    const duplicates = [];
+    
+    // Only check if we have existing slots
+    if (!existingSlots.length) return duplicates;
+    
+    // For each new slot, check against existing slots
+    slots.forEach(newSlot => {
+      const newSlotDate = format(new Date(newSlot.date), 'yyyy-MM-dd');
+      
+      existingSlots.forEach(existingSlot => {
+        // Convert existing slot date to same format
+        const existingSlotDate = format(new Date(existingSlot.date), 'yyyy-MM-dd');
+        
+        // Check for exact date and time match
+        if (newSlotDate === existingSlotDate && newSlot.startTime === existingSlot.startTime) {
+          duplicates.push({
+            date: newSlotDate,
+            startTime: newSlot.startTime,
+            endTime: newSlot.endTime,
+            existingSlot: `${existingSlot.startTime}-${existingSlot.endTime}`,
+            examinerName: existingSlot.examinerName || 'Another examiner',
+            isCurrentExaminer: existingSlot.isCurrentExaminer,
+            slotId: newSlot.id || null // For identifying the slot in the preview
+          });
+        }
+      });
+    });
+    
+    return duplicates;
   };
 
   const handlePatternChange = (event) => {
@@ -259,6 +355,40 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
             newWarnings.push(`Overlapping time slots on ${overlap.date}: ${overlap.slot1} and ${overlap.slot2}`);
           });
         }
+        
+        // Check for duplicate start times with existing slots
+        const duplicates = checkDuplicateStartTimes(previewSlots);
+        if (duplicates.length > 0) {
+          duplicates.forEach(duplicate => {
+            if (duplicate.isCurrentExaminer) {
+              newWarnings.push(`Duplicate start time on ${duplicate.date}: You're adding a slot starting at ${duplicate.startTime} but there's already an existing slot (${duplicate.existingSlot}) for this examiner.`);
+            } else {
+              newWarnings.push(`Potential scheduling conflict on ${duplicate.date}: You're adding a slot starting at ${duplicate.startTime} but ${duplicate.examinerName} already has a slot at this time (${duplicate.existingSlot}).`);
+            }
+          });
+        }
+        
+        // Check for exact date and time matches in database
+        const exactMatches = existingSlots.filter(existingSlot => {
+          return previewSlots.some(newSlot => {
+            const newSlotDate = format(new Date(newSlot.date), 'yyyy-MM-dd');
+            const existingSlotDate = format(new Date(existingSlot.date), 'yyyy-MM-dd');
+            return newSlotDate === existingSlotDate && 
+                   newSlot.startTime === existingSlot.startTime && 
+                   newSlot.endTime === existingSlot.endTime;
+          });
+        });
+        
+        if (exactMatches.length > 0) {
+          exactMatches.forEach(match => {
+            const matchDate = format(new Date(match.date), 'yyyy-MM-dd');
+            if (match.isCurrentExaminer) {
+              newWarnings.push(`Exact duplicate found on ${matchDate}: A slot with the same date and time (${match.startTime}-${match.endTime}) already exists for this examiner.`);
+            } else {
+              newWarnings.push(`Exact duplicate found on ${matchDate}: A slot with the same date and time (${match.startTime}-${match.endTime}) already exists for ${match.examinerName || 'another examiner'}.`);
+            }
+          });
+        }
       }
     }
 
@@ -275,17 +405,32 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
 
     const slots = [];
     let currentDate = new Date(startDate);
-    const end = patternType === 'single' ? currentDate : new Date(endDate);
+    let end;
+    
+    // Set end date based on pattern
+    if (patternType === 'daily') {
+      // Use the provided end date for daily pattern
+      end = new Date(endDate);
+    } else if (patternType === 'weekly') {
+      // For weekly, repeat for 4 weeks from start date
+      end = addWeeks(new Date(startDate), 4);
+    } else if (patternType === 'monthly') {
+      // For monthly, repeat for 3 months from start date
+      end = addMonths(new Date(startDate), 3);
+    }
 
     // Generate dates based on pattern
+    let slotId = 0;
     while (currentDate <= end) {
       timeBlocks.forEach(block => {
         slots.push({
+          id: slotId++, // Add unique ID for each slot
           date: new Date(currentDate),
           startTime: block.startTime,
           endTime: block.endTime,
           status: 'available',
-          notes: block.notes || ''
+          notes: block.notes || '',
+          removed: false // Flag to track if user has removed this slot
         });
       });
 
@@ -296,15 +441,30 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
         currentDate = addWeeks(currentDate, 1);
       } else if (patternType === 'monthly') {
         currentDate = addMonths(currentDate, 1);
-      } else {
-        // For single pattern, break after one iteration
-        break;
       }
     }
 
     setPreview(slots);
   };
 
+  // Handle removing a slot from the preview
+  const handleRemoveSlot = (slotId) => {
+    setPreview(prevPreview => 
+      prevPreview.map(slot => 
+        slot.id === slotId ? { ...slot, removed: true } : slot
+      )
+    );
+  };
+  
+  // Handle restoring a removed slot
+  const handleRestoreSlot = (slotId) => {
+    setPreview(prevPreview => 
+      prevPreview.map(slot => 
+        slot.id === slotId ? { ...slot, removed: false } : slot
+      )
+    );
+  };
+  
   const handleSubmit = async () => {
     if (!validateForm()) {
       return;
@@ -329,14 +489,16 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
           return;
         }
 
-        // Format slots for API
-        const formattedSlots = preview.map(slot => ({
-          date: format(slot.date, 'yyyy-MM-dd'),
-          startTime: slot.startTime,
-          endTime: slot.endTime,
-          status: slot.status,
-          notes: slot.notes || ''
-        }));
+        // Format slots for API - exclude removed slots
+        const formattedSlots = preview
+          .filter(slot => !slot.removed)
+          .map(slot => ({
+            date: format(slot.date, 'yyyy-MM-dd'),
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            status: slot.status,
+            notes: slot.notes || ''
+          }));
 
         // Call the onSlotsCreated callback with the examinerId and slots
         await onSlotsCreated(examinerId, formattedSlots);
@@ -420,12 +582,6 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
                         sx={{ width: '100%', justifyContent: 'space-between' }}
                       >
                         <FormControlLabel 
-                          value="single" 
-                          control={<Radio color="primary" />} 
-                          label={<Typography sx={{ fontWeight: patternType === 'single' ? 'bold' : 'normal' }}>Single Day</Typography>} 
-                          sx={{ flex: 1, m: 0 }}
-                        />
-                        <FormControlLabel 
                           value="daily" 
                           control={<Radio color="primary" />} 
                           label={<Typography sx={{ fontWeight: patternType === 'daily' ? 'bold' : 'normal' }}>Daily</Typography>} 
@@ -434,13 +590,13 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
                         <FormControlLabel 
                           value="weekly" 
                           control={<Radio color="primary" />} 
-                          label={<Typography sx={{ fontWeight: patternType === 'weekly' ? 'bold' : 'normal' }}>Weekly</Typography>} 
+                          label={<Typography sx={{ fontWeight: patternType === 'weekly' ? 'bold' : 'normal' }}>Weekly (4 weeks)</Typography>} 
                           sx={{ flex: 1, m: 0 }}
                         />
                         <FormControlLabel 
                           value="monthly" 
                           control={<Radio color="primary" />} 
-                          label={<Typography sx={{ fontWeight: patternType === 'monthly' ? 'bold' : 'normal' }}>Monthly</Typography>} 
+                          label={<Typography sx={{ fontWeight: patternType === 'monthly' ? 'bold' : 'normal' }}>Monthly (3 months)</Typography>} 
                           sx={{ flex: 1, m: 0 }}
                         />
                       </RadioGroup>
@@ -490,34 +646,32 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
                         </LocalizationProvider>
                       </Grid>
 
-                      {patternType !== 'single' && (
-                        <Grid item xs={12} sm={6}>
-                          <LocalizationProvider dateAdapter={AdapterDateFns}>
-                            <DatePicker
-                              label="End Date"
-                              value={endDate}
-                              onChange={(newValue) => {
-                                setEndDate(newValue);
-                                if (errors.endDate) {
-                                  const { endDate, ...rest } = errors;
-                                  setErrors(rest);
-                                }
-                              }}
-                              renderInput={(params) => (
-                                <TextField
-                                  {...params}
-                                  fullWidth
-                                  error={!!errors.endDate}
-                                  helperText={errors.endDate || (startDate ? 'End date must be after start date' : '')}
-                                  sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
-                                />
-                              )}
-                              minDate={startDate || today} // Prevent selecting dates before start date or today
-                              disabled={!startDate} // Disable until start date is selected
-                            />
-                          </LocalizationProvider>
-                        </Grid>
-                      )}
+                      <Grid item xs={12} sm={6}>
+                        <LocalizationProvider dateAdapter={AdapterDateFns}>
+                          <DatePicker
+                            label="End Date"
+                            value={endDate}
+                            onChange={(newValue) => {
+                              setEndDate(newValue);
+                              if (errors.endDate) {
+                                const { endDate, ...rest } = errors;
+                                setErrors(rest);
+                              }
+                            }}
+                            renderInput={(params) => (
+                              <TextField
+                                {...params}
+                                fullWidth
+                                error={!!errors.endDate}
+                                helperText={errors.endDate || (startDate ? 'End date must be after start date' : '')}
+                                sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
+                              />
+                            )}
+                            minDate={startDate || today} // Prevent selecting dates before start date or today
+                            disabled={!startDate} // Disable until start date is selected
+                          />
+                        </LocalizationProvider>
+                      </Grid>
                     </Grid>
                   </Paper>
                 </Grid>
@@ -576,10 +730,14 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
                                 value={block.startTime}
                                 onChange={(e) => handleTimeBlockChange(index, 'startTime', e.target.value)}
                                 InputLabelProps={{ shrink: true }}
-                                inputProps={{ step: 300 }}
+                                inputProps={{ 
+                                  step: 1800, // 30 minutes in seconds
+                                  min: '08:00',
+                                  max: '20:00'
+                                }}
                                 fullWidth
                                 error={!!errors[`timeBlocks.${index}.startTime`]}
-                                helperText={errors[`timeBlocks.${index}.startTime`]}
+                                helperText={errors[`timeBlocks.${index}.startTime`] || 'Select time between 8:00 AM and 8:00 PM'}
                                 size="small"
                                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
                               />
@@ -591,10 +749,14 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
                                 value={block.endTime}
                                 onChange={(e) => handleTimeBlockChange(index, 'endTime', e.target.value)}
                                 InputLabelProps={{ shrink: true }}
-                                inputProps={{ step: 300 }}
+                                inputProps={{ 
+                                  step: 1800, // 30 minutes in seconds
+                                  min: '08:00',
+                                  max: '20:00'
+                                }}
                                 fullWidth
                                 error={!!errors[`timeBlocks.${index}.endTime`]}
-                                helperText={errors[`timeBlocks.${index}.endTime`]}
+                                helperText={errors[`timeBlocks.${index}.endTime`] || 'Select time between 8:00 AM and 8:00 PM'}
                                 size="small"
                                 sx={{ '& .MuiOutlinedInput-root': { borderRadius: 1 } }}
                               />
@@ -667,34 +829,88 @@ const SlotCreator = ({ examinerId, onSlotsCreated }) => {
                     }}
                   >
                     <Grid container spacing={1}>
-                      {preview.slice(0, 15).map((slot, index) => (
-                        <Grid item xs={12} sm={6} md={4} key={index}>
-                          <Paper 
-                            elevation={0} 
-                            sx={{ 
-                              p: 1, 
-                              mb: 1, 
-                              bgcolor: 'white',
-                              border: '1px solid',
-                              borderColor: 'divider',
-                              borderRadius: 1,
-                              '&:hover': { boxShadow: 1 }
-                            }}
-                          >
-                            <Typography variant="body2" fontWeight="medium">
-                              {format(new Date(slot.date), 'MMM dd, yyyy')}
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                              {slot.startTime} to {slot.endTime}
-                            </Typography>
-                          </Paper>
-                        </Grid>
+                      {preview
+                        .filter(slot => !slot.removed)
+                        .slice(0, 15)
+                        .map((slot, index) => (
+                          <Grid item xs={12} sm={6} md={4} key={slot.id}>
+                            <Paper 
+                              elevation={0} 
+                              sx={{ 
+                                p: 1, 
+                                mb: 1, 
+                                bgcolor: 'white',
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                borderRadius: 1,
+                                '&:hover': { boxShadow: 1 },
+                                position: 'relative'
+                              }}
+                            >
+                              <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                <Typography variant="body2" fontWeight="medium">
+                                  {format(new Date(slot.date), 'MMM dd, yyyy')}
+                                </Typography>
+                                <IconButton 
+                                  size="small" 
+                                  color="error" 
+                                  onClick={() => handleRemoveSlot(slot.id)}
+                                  sx={{ 
+                                    p: 0.5, 
+                                    '&:hover': { bgcolor: 'error.light', color: 'white' }
+                                  }}
+                                >
+                                  <DeleteIcon fontSize="small" />
+                                </IconButton>
+                              </Box>
+                              <Typography variant="body2" color="text.secondary">
+                                {slot.startTime} to {slot.endTime}
+                              </Typography>
+                            </Paper>
+                          </Grid>
                       ))}
+                      
+                      {/* Show removed slots with option to restore */}
+                      {preview.filter(slot => slot.removed).length > 0 && (
+                        <Grid item xs={12}>
+                          <Box sx={{ mt: 2, p: 1, borderTop: '1px dashed', borderColor: 'divider' }}>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                              Removed Slots ({preview.filter(slot => slot.removed).length}):
+                            </Typography>
+                            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                              {preview
+                                .filter(slot => slot.removed)
+                                .slice(0, 10)
+                                .map(slot => (
+                                  <Chip
+                                    key={slot.id}
+                                    label={`${format(new Date(slot.date), 'MMM dd')} (${slot.startTime})`}
+                                    size="small"
+                                    color="default"
+                                    variant="outlined"
+                                    onClick={() => handleRestoreSlot(slot.id)}
+                                    onDelete={() => handleRestoreSlot(slot.id)}
+                                    deleteIcon={<AddIcon />}
+                                    sx={{ bgcolor: 'grey.100' }}
+                                  />
+                              ))}
+                              {preview.filter(slot => slot.removed).length > 10 && (
+                                <Chip 
+                                  label={`+${preview.filter(slot => slot.removed).length - 10} more`} 
+                                  size="small" 
+                                  variant="outlined" 
+                                  sx={{ bgcolor: 'grey.100' }}
+                                />
+                              )}
+                            </Box>
+                          </Box>
+                        </Grid>
+                      )}
                     </Grid>
-                    {preview.length > 15 && (
+                    {preview.filter(slot => !slot.removed).length > 15 && (
                       <Box sx={{ mt: 1, p: 1, textAlign: 'center', bgcolor: 'grey.100', borderRadius: 1 }}>
                         <Typography variant="body2" color="text.secondary">
-                          ...and {preview.length - 15} more slots
+                          ...and {preview.filter(slot => !slot.removed).length - 15} more slots
                         </Typography>
                       </Box>
                     )}

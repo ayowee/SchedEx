@@ -23,6 +23,7 @@ import ExaminerSelector from '../../components/availability/ExaminerSelector';
 import AdminLayout from '../../layouts/AdminLayout';
 
 import availabilityService from '../../services/availabilityService';
+import reportService from '../../services/reportService';
 
 const AvailabilityView = () => {
   const [activeTab, setActiveTab] = useState(0);
@@ -120,18 +121,28 @@ const AvailabilityView = () => {
 
   const handleGenerateReport = async (params) => {
     try {
-      const report = await availabilityService.generateReport(params);
+      // Use the new reportService instead of availabilityService
+      const result = await reportService.generateAvailabilityReport(params);
       
-      // Create a download link for the report
-      const blob = new Blob([report], { type: 'application/pdf' });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `availability-report-${new Date().toISOString().split('T')[0]}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      if (params.format === 'pdf') {
+        // For PDF format, create a download link
+        const blob = result; // The result is already a blob
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `availability-report-${new Date().toISOString().split('T')[0]}.pdf`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+      } else if (params.format === 'json') {
+        // For JSON format, open in a new tab
+        const jsonStr = JSON.stringify(result, null, 2);
+        const blob = new Blob([jsonStr], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        window.open(url, '_blank');
+        window.URL.revokeObjectURL(url);
+      }
       
       setSuccessMessage('Report generated successfully!');
       setTimeout(() => setSuccessMessage(null), 3000);

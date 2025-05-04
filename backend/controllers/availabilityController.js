@@ -332,67 +332,124 @@ exports.deleteSlot = async (req, res) => {
 
 // Generate availability report
 exports.generateAvailabilityReport = async (req, res) => {
+  console.log('Report generation request received:', req.query);
   try {
     const { examinerId, startDate, endDate, format = 'pdf' } = req.query;
+    console.log('Processing report with params:', { examinerId, startDate, endDate, format });
     
     // Validate date range
     if (startDate && endDate && new Date(startDate) > new Date(endDate)) {
+      console.log('Invalid date range:', { startDate, endDate });
       return res.status(400).json({ message: 'End date must be after start date' });
     }
     
     // Build query
     const query = {};
-    if (examinerId) {
+    if (examinerId && examinerId !== 'undefined' && examinerId !== 'null') {
       try {
         query.examinerId = new mongoose.Types.ObjectId(examinerId);
+        console.log('Using examiner filter:', query.examinerId);
       } catch (err) {
+        console.error('Invalid examiner ID format:', examinerId, err);
         return res.status(400).json({ message: 'Invalid examiner ID format' });
       }
     }
     
-    const slotQuery = {};
-    if (startDate || endDate) {
-      slotQuery.date = {};
-      if (startDate) slotQuery.date.$gte = new Date(startDate);
-      if (endDate) slotQuery.date.$lte = new Date(endDate);
-    }
+    console.log('Executing query:', JSON.stringify(query));
     
     // Find availability records
     const availabilityRecords = await ExaminerAvailability.find(query);
+    console.log(`Found ${availabilityRecords.length} availability records`);
     
     if (!availabilityRecords.length) {
-      return res.status(404).json({ message: 'No availability records found' });
+      console.log('No availability records found');
+      return res.status(200).json({ 
+        message: 'No availability records found',
+        data: []
+      });
     }
     
-    // Prepare report data
-    const reportData = availabilityRecords.map(record => ({
-      examinerName: record.examinerName,
-      examinerId: record.examinerId,
-      slots: record.slots.filter(slot => {
-        let match = true;
-        if (slotQuery.date) {
-          if (slotQuery.date.$gte && slot.date < slotQuery.date.$gte) match = false;
-          if (slotQuery.date.$lte && slot.date > slotQuery.date.$lte) match = false;
-        }
-        return match;
-      })
-    }));
+    // Filter slots by date range
+    console.log('Filtering slots by date range');
+    const reportData = [];
     
-    // Generate report based on format
+    for (const record of availabilityRecords) {
+      try {
+        // Convert record to plain object to avoid mongoose document issues
+        const plainRecord = JSON.parse(JSON.stringify(record));
+        
+        // Filter slots by date range if specified
+        if (startDate || endDate) {
+          const filteredSlots = [];
+          
+          for (const slot of plainRecord.slots || []) {
+            try {
+              const slotDate = new Date(slot.date);
+              let matchesDateRange = true;
+              
+              if (startDate) {
+                const startDateObj = new Date(startDate);
+                if (slotDate < startDateObj) {
+                  matchesDateRange = false;
+                }
+              }
+              
+              if (endDate) {
+                const endDateObj = new Date(endDate);
+                // Set end date to end of day
+                endDateObj.setHours(23, 59, 59, 999);
+                if (slotDate > endDateObj) {
+                  matchesDateRange = false;
+                }
+              }
+              
+              if (matchesDateRange) {
+                filteredSlots.push(slot);
+              }
+            } catch (slotError) {
+              console.error('Error processing slot:', slot, slotError);
+              // Skip this slot but continue processing others
+            }
+          }
+          
+          plainRecord.slots = filteredSlots;
+        }
+        
+        if ((plainRecord.slots || []).length > 0) {
+          reportData.push(plainRecord);
+        }
+      } catch (recordError) {
+        console.error('Error processing record:', record._id, recordError);
+        // Skip this record but continue processing others
+      }
+    }
+    
+    console.log(`After filtering, found ${reportData.length} records with ${reportData.reduce((acc, record) => acc + (record.slots?.length || 0), 0)} total slots`);
+    
+    if (reportData.length === 0) {
+      console.log('No availability slots found for the specified date range');
+      return res.status(200).json({ 
+        message: 'No availability slots found for the specified date range',
+        data: []
+      });
+    }
+    
+    // Generate response based on format
     if (format === 'pdf') {
-      // Here you would use a PDF generation library like pdfkit or puppeteer
-      // For now, we'll return a simple JSON response
-      res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', 'attachment; filename=availability-report.pdf');
-      res.send(JSON.stringify(reportData, null, 2));
+      console.log('Returning data for PDF generation');
+      // Return JSON data that will be converted to PDF on the frontend
+      return res.json(reportData);
     } else {
-      res.json(reportData);
+      console.log('Returning JSON data');
+      // Return JSON data directly
+      return res.json(reportData);
     }
   } catch (error) {
     console.error('Error generating report:', error);
-    res.status(500).json({ 
+    return res.status(500).json({ 
       message: 'Error generating report',
-      error: error.message
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   }
 };
