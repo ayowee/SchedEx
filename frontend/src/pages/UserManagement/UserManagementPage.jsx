@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import UserForm from "../../components/userManagement/UserForm";
 import UserTable from "../../components/userManagement/UserTable";
 import { userService } from "../../services/api";
@@ -44,9 +44,23 @@ const initialUsers = [
 ];
 
 export default function UserManagementPage() {
-  const [users, setUsers] = useState([]);
+  const [users, setUsers] = useState(initialUsers);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // Transform user data for charts
+  const userTypeData = useMemo(() => {
+    const userTypes = users.reduce((acc, user) => {
+      acc[user.userType] = (acc[user.userType] || 0) + 1;
+      return acc;
+    }, {});
+    
+    return Object.entries(userTypes).map(([type, value]) => ({
+      type,
+      value,
+      color: USER_TYPE_COLORS[type] || '#CBD5E1'
+    }));
+  }, [users]);
 
   // Fetch users from API on component mount
   useEffect(() => {
@@ -55,16 +69,25 @@ export default function UserManagementPage() {
         setLoading(true);
         setError(null);
         const data = await userService.getAllUsers();
-        setUsers(data);
+        if (data && Array.isArray(data)) {
+          setUsers(data);
+        } else {
+          // Fallback to initial users if API fails
+          console.warn('Invalid data format from API, using initial data');
+          setUsers(initialUsers);
+        }
       } catch (error) {
         console.error('Error fetching users:', error);
         setError(error.response?.data?.error || 'Error fetching users');
+        // Fallback to initial users if API fails
+        setUsers(initialUsers);
       } finally {
         setLoading(false);
       }
     };
     fetchUsers();
   }, []);
+
   const [editingUser, setEditingUser] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [formSubmitted, setFormSubmitted] = useState(false);
@@ -169,27 +192,8 @@ export default function UserManagementPage() {
       examinersDir: 'up',
     },
   };
-  // Pie chart data
-  const userTypeData = [
-    { type: 'Admin', value: stats.admins, color: USER_TYPE_COLORS.Admin },
-    { type: 'Examiner', value: stats.examiners, color: USER_TYPE_COLORS.Examiner },
-    { type: 'Student', value: stats.students, color: USER_TYPE_COLORS.Student },
-  ];
-  // Monthly data (dummy)
-  const monthlyData = [
-    { month: 'Jan', value: 2 },
-    { month: 'Feb', value: 1 },
-    { month: 'Mar', value: 2 },
-    { month: 'Apr', value: 3 },
-    { month: 'May', value: 1 },
-    { month: 'Jun', value: 2 },
-    { month: 'Jul', value: 1 },
-    { month: 'Aug', value: 1 },
-    { month: 'Sep', value: 2 },
-    { month: 'Oct', value: 2 },
-    { month: 'Nov', value: 1 },
-    { month: 'Dec', value: 2 },
-  ];
+  // Pie chart data is now handled by the useMemo hook above
+
 
   return (
     <div className="flex flex-col gap-8 p-6">
@@ -212,7 +216,7 @@ export default function UserManagementPage() {
           {/* Dashboard Widgets */}
           <UserMetrics stats={stats} />
           <div className="flex flex-col lg:flex-row gap-8">
-          <UserCharts userTypeData={userTypeData} monthlyData={monthlyData} />
+          <UserCharts userTypeData={userTypeData} />
           <UserRecentActivity activities={recentActivity} />
           </div>
 

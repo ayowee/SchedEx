@@ -191,15 +191,18 @@ const UserTable = ({ users = [], editUser = () => {}, deleteUser = () => {}, loa
           <tbody>
             {loading
               ? skeletonRows.map((_, idx) => (
-                  <tr key={idx}>
+                  <tr key={`skeleton-${idx}`} className="animate-pulse">
                     <td className="p-3">
-                      <div className="w-9 h-9 rounded-full bg-gray-200 animate-pulse" />
-                    </td>
-                    <td className="p-3">
-                      <div className="h-4 w-24 bg-gray-200 rounded animate-pulse" />
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-full bg-gray-200" />
+                        <div className="h-4 w-32 bg-gray-200 rounded" />
+                      </div>
                     </td>
                     <td className="p-3">
                       <div className="h-4 w-20 bg-gray-200 rounded animate-pulse" />
+                    </td>
+                    <td className="p-3">
+                      <div className="h-4 w-12 bg-gray-200 rounded animate-pulse" />
                     </td>
                     <td className="p-3">
                       <div className="h-4 w-12 bg-gray-200 rounded animate-pulse" />
