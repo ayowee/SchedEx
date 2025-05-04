@@ -14,6 +14,9 @@ import './calendar-styles.css';
 import { presentationService } from '../../services/api';
 import ConfirmationDialog from '../../components/ui/ConfirmationDialog';
 import DateNavigator from '../../components/presentationManagement/Calendar/DateNavigator';
+// Service imported for future implementation - using mock data for now
+// eslint-disable-next-line no-unused-vars
+import examinerAvailabilityService from '../../services/examinerAvailabilityService';
 
 // Status configuration with colors
 const statusConfig = {
@@ -127,20 +130,25 @@ const presentationToEvent = (presentation) => {
 // Convert calendar event to presentation format
 const eventToPresentation = (event) => {
     const startDate = event.start;
+    // Format status - ensure it's included and properly cased
+    const status = event.extendedProps.status 
+        ? event.extendedProps.status.charAt(0).toUpperCase() + event.extendedProps.status.slice(1).toLowerCase() 
+        : 'Scheduled';
 
     return {
         id: event.id,
-        groupId: event.groupId,
+        _id: event.id, // Include both id and _id to handle MongoDB ID
+        groupId: event.extendedProps.groupId || event.groupId,
         examinerId: event.extendedProps.examinerId,
-        date: startDate.toISOString().split('T')[0],
-        time: startDate.toTimeString().substring(0, 5),
-        location: event.location,
-        duration: event.extendedProps.duration,
         examinerName: event.extendedProps.examinerName,
         examinerEmail: event.extendedProps.examinerEmail,
-        subjectName: event.title,
-        description: event.extendedProps.description,
-        status: event.extendedProps.status
+        date: startDate.toISOString().split('T')[0],
+        time: startDate.toTimeString().substring(0, 5),
+        duration: event.extendedProps.duration || 30,
+        location: event.extendedProps.location || event.location,
+        subjectName: event.extendedProps.subjectName || event.title,
+        description: event.extendedProps.description || '',
+        status: status
     };
 };
 
@@ -210,13 +218,17 @@ const Calendar = () => {
     const [events, setEvents] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedPresentation, setSelectedPresentation] = useState(null);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
     const [currentDate, setCurrentDate] = useState(new Date());
     const [currentView, setCurrentView] = useState('dayGridMonth');
-    const [examinerAvailability, setExaminerAvailability] = useState({});
+    const [examinerAvailabilityData, setExaminerAvailabilityData] = useState({});
     const [showConfirmation, setShowConfirmation] = useState(false);
     const [draggedEvent, setDraggedEvent] = useState(null);
     const [isDragging, setIsDragging] = useState(false);
+    const [confirmationTitle, setConfirmationTitle] = useState('');
+    const [confirmationMessage, setConfirmationMessage] = useState('');
+    const [availabilityConflict, setAvailabilityConflict] = useState(false);
+    const [highlightedDate, setHighlightedDate] = useState(null);
 
     const calendarRef = useRef(null);
     const [calendarApi, setCalendarApi] = useState(null);
@@ -283,7 +295,7 @@ const Calendar = () => {
     const fetchExaminerAvailability = useCallback(async () => {
         try {
             // This would be replaced with an actual API call
-            // const data = await availabilityService.getAllAvailability();
+            // const data = await examinerAvailabilityService.getAllAvailability();
             // For now, we'll use a mock implementation
             const mockAvailability = {
                 'EX-101': [
@@ -295,25 +307,43 @@ const Calendar = () => {
                     { date: '2025-10-17', startTime: '10:00', endTime: '15:00' },
                 ]
             };
-            setExaminerAvailability(mockAvailability);
+            setExaminerAvailabilityData(mockAvailability);
         } catch (error) {
             console.error('Error fetching examiner availability:', error);
         }
     }, []);
 
     // Check if a time slot is available for an examiner
-    const isSlotAvailable = useCallback((examinerId, date, startTime, endTime) => {
-        if (!examinerAvailability[examinerId]) return false;
-
-        const dateStr = date.toISOString().split('T')[0];
-        const slots = examinerAvailability[examinerId];
-
-        return slots.some(slot => {
-            return slot.date === dateStr &&
-                slot.startTime <= startTime &&
-                slot.endTime >= endTime;
-        });
-    }, [examinerAvailability]);
+    const isSlotAvailable = async (examinerId, date, startTime, endTime) => {
+        try {
+            // For debugging
+            console.log('Checking availability for examiner:', examinerId || 'Unknown');
+            
+            // Check if we have cached availability data for this examiner
+            if (examinerId && examinerAvailabilityData[examinerId]) {
+                const dateStr = date.toISOString().split('T')[0];
+                const slots = examinerAvailabilityData[examinerId];
+                
+                // Check if any available slot covers the requested time
+                return slots.some(slot => 
+                    slot.date === dateStr && 
+                    slot.startTime <= startTime && 
+                    slot.endTime >= endTime
+                );
+            }
+            
+            // If we don't have cached data or no matching slots, 
+            // use a random check (30% chance examiner is unavailable)
+            const isAvailable = Math.random() > 0.3;
+            
+            console.log(`Availability check for ${examinerId || 'Unknown'} on ${date.toISOString().split('T')[0]} from ${startTime} to ${endTime}: ${isAvailable}`);
+            
+            return isAvailable;
+        } catch (error) {
+            console.error('Error checking availability:', error);
+            return false; // Default to unavailable if check fails
+        }
+    };
 
     useEffect(() => {
         fetchPresentations();
@@ -347,6 +377,41 @@ const Calendar = () => {
             status: "scheduled"
         });
 
+        setIsModalOpen(true);
+    };
+
+    // Handle date click - opens form with selected date
+    const handleDateClick = (info) => {
+        const clickedDate = info.date;
+        
+        // Format date for the form
+        const formattedDate = clickedDate.toISOString().split('T')[0];
+        
+        // Get current time (rounded to nearest 15 minutes)
+        const now = new Date();
+        const minutes = Math.ceil(now.getMinutes() / 15) * 15;
+        const hours = now.getHours();
+        const adjustedHours = minutes === 60 ? hours + 1 : hours;
+        const adjustedMinutes = minutes === 60 ? 0 : minutes;
+        
+        // Format time as HH:MM
+        const formattedTime = `${String(adjustedHours).padStart(2, '0')}:${String(adjustedMinutes).padStart(2, '0')}`;
+        
+        setSelectedPresentation({
+            id: null,
+            groupId: "",
+            examinerId: "",
+            date: formattedDate,
+            time: formattedTime,
+            location: "",
+            duration: 30,
+            examinerName: "",
+            examinerEmail: "",
+            subjectName: "",
+            description: "",
+            status: "Scheduled" // Default status for new presentations
+        });
+        
         setIsModalOpen(true);
     };
 
@@ -428,14 +493,15 @@ const Calendar = () => {
 
         const { event } = info;
         const presentation = eventToPresentation(event);
-        const examinerId = presentation.examinerId;
+        // Make sure we have a valid examinerId - use the one from extendedProps as fallback
+        const examinerId = presentation.examinerId || event.extendedProps.examinerId || '';
 
         // Format times for availability check
         const startTime = event.start.toTimeString().substring(0, 5);
         const endTime = event.end.toTimeString().substring(0, 5);
 
         // Check if the new slot conflicts with examiner availability
-        const isAvailable = isSlotAvailable(
+        const isAvailable = await isSlotAvailable(
             examinerId,
             event.start,
             startTime,
@@ -450,6 +516,9 @@ const Calendar = () => {
                 delta: info.delta,
                 revert: info.revert
             });
+            setAvailabilityConflict(true);
+            setConfirmationTitle('Availability Conflict');
+            setConfirmationMessage('The examiner may not be available during this time slot. Do you still want to reschedule the presentation?');
             setShowConfirmation(true);
             return;
         }
@@ -476,18 +545,39 @@ const Calendar = () => {
     const updatePresentationAfterDrag = async (presentation, revert) => {
         setIsLoading(true);
         try {
+            // Log the data being sent to help diagnose issues
+            console.log('Updating presentation with data:', presentation);
+            
+            // Make sure we're using the correct ID format
+            const presentationId = presentation._id || presentation.id;
+            
+            // Ensure the presentation has all required fields
+            const updatedPresentation = {
+                ...presentation,
+                // Add any missing required fields with defaults
+                status: presentation.status || 'Scheduled',
+                duration: presentation.duration || 30,
+                description: presentation.description || ''
+            };
+            
             // Call API to update the presentation
-            await presentationService.updatePresentation(presentation.id, presentation);
+            await presentationService.updatePresentation(presentationId, updatedPresentation);
             toast.success('Presentation rescheduled successfully');
 
             // Update local state
             setPresentations(prev =>
-                prev.map(p => p.id === presentation.id ? presentation : p)
+                prev.map(p => (p._id === presentationId || p.id === presentationId) ? updatedPresentation : p)
             );
         } catch (error) {
             console.error('Error updating presentation:', error);
-            toast.error('Failed to reschedule presentation');
-            revert(); // Revert the drag if API call fails
+            // Show more detailed error if available from API
+            if (error.response && error.response.data) {
+                console.error('API Error details:', error.response.data);
+                toast.error(`Failed to reschedule: ${error.response.data.error || 'Unknown error'}`);
+            } else {
+                toast.error('Failed to reschedule presentation');
+            }
+            if (revert) revert(); // Revert the drag if API call fails
         } finally {
             setIsLoading(false);
         }
@@ -496,20 +586,39 @@ const Calendar = () => {
     // Handle confirmation dialog response
     const handleConfirmation = async (confirmed) => {
         setShowConfirmation(false);
-
-        if (!draggedEvent) return;
-
-        if (confirmed) {
-            // User confirmed the reschedule despite availability conflict
-            await updatePresentationAfterDrag(draggedEvent.presentation, draggedEvent.revert);
-        } else {
-            // User cancelled, revert the drag
-            if (draggedEvent.revert) {
+        
+        if (!confirmed) {
+            if (draggedEvent) {
                 draggedEvent.revert();
             }
+            setDraggedEvent(null);
+            setAvailabilityConflict(false);
+            return;
         }
 
-        setDraggedEvent(null);
+        if (draggedEvent) {
+            try {
+                await updatePresentationAfterDrag(draggedEvent.presentation, draggedEvent.revert);
+                
+                if (availabilityConflict) {
+                    toast.warning('Presentation was rescheduled, but the examiner may have a scheduling conflict.', {
+                        position: "bottom-right",
+                        autoClose: 5000
+                    });
+                    setAvailabilityConflict(false);
+                }
+            } catch (err) {
+                console.error('Error updating presentation:', err);
+                toast.error('Failed to reschedule presentation', {
+                    position: "bottom-right"
+                });
+                if (draggedEvent.revert) {
+                    draggedEvent.revert();
+                }
+            }
+            
+            setDraggedEvent(null);
+        }
     };
 
     // Generate PDF report
@@ -605,26 +714,27 @@ const Calendar = () => {
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [handleKeyDown]);
 
-    const handleDateChange = ({ start }) => {
-        if (calendarApi) {
-            // Clear previous highlights
-            calendarApi.getEvents().forEach(event => {
-                if (event.groupId === 'date-highlight') event.remove();
-            });
+    // Handle date change from the DateNavigator
+    const handleDateChange = (date) => {
+        if (date && calendarApi) {
+            // Go to the selected date
+            calendarApi.gotoDate(date);
+            
+            // Highlight the selected date
+            setHighlightedDate(date);
+            
+            // Update current date state
+            setCurrentDate(date);
+        }
+    };
 
-            // Add new highlight
-            calendarApi.addEvent({
-                title: 'Selected Date',
-                start: start,
-                allDay: true,
-                display: 'background',
-                color: '#ADD8E6', // Light blue color
-                classNames: ['date-highlight'],
-                groupId: 'date-highlight'
-            });
-
-            // Navigate to date
-            calendarApi.gotoDate(start);
+    // Handle highlighting for searched date
+    const handleDayCellDidMount = (info) => {
+        // Highlight the searched date if it matches
+        if (highlightedDate && info.date.toDateString() === new Date(highlightedDate).toDateString()) {
+            info.el.style.backgroundColor = 'rgba(59, 130, 246, 0.1)'; // Light blue background
+            info.el.style.borderRadius = '8px';
+            info.el.style.border = '2px solid #3b82f6';
         }
     };
 
@@ -730,26 +840,29 @@ const Calendar = () => {
                         timeGridPlugin,
                         interactionPlugin
                     ]}
-                    initialView="dayGridMonth"
                     headerToolbar={{
                         left: '',
                         center: 'title',
                         right: ''
                     }}
+                    initialView={currentView}
                     titleFormat={{ year: 'numeric', month: 'long' }}
                     selectable={true}
-                    select={handleDateSelect}
+                    selectMirror={true}
+                    dayMaxEvents={3}
+                    weekends={true}
                     events={events}
+                    dateClick={handleDateClick}
+                    select={handleDateSelect}
                     eventClick={handleEventClick}
                     eventTimeFormat={{
                         hour: '2-digit',
                         minute: '2-digit',
                         hour12: true
                     }}
-                    datesSet={handleDatesSet}
                     eventContent={renderEventContent}
-                    dayMaxEvents={3}
-                    eventDisplay="block"
+                    datesSet={handleDatesSet}
+                    dayCellDidMount={handleDayCellDidMount}
                     nowIndicator={true}
                     businessHours={{
                         daysOfWeek: [1, 2, 3, 4, 5], // Monday - Friday
@@ -827,15 +940,15 @@ const Calendar = () => {
                 />
             </Modal>
 
-            {/* Confirmation dialog for availability conflicts */}
+            {/* Confirmation Dialog */}
             {showConfirmation && (
                 <ConfirmationDialog
                     isOpen={showConfirmation}
                     onClose={() => handleConfirmation(false)}
                     onConfirm={() => handleConfirmation(true)}
-                    title="Availability Conflict"
-                    message="The examiner may not be available during this time slot. Do you still want to reschedule the presentation?"
-                    confirmText="Reschedule Anyway"
+                    title={confirmationTitle || "Confirm Action"}
+                    message={confirmationMessage || "Are you sure you want to proceed with this action?"}
+                    confirmText={availabilityConflict ? "Reschedule Anyway" : "Confirm"}
                     cancelText="Cancel"
                 />
             )}

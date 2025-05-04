@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { userService } from '../../services/api';
 
-const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, isLoading }) => {
+const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, isLoading, initialValues }) => {
     const [formData, setFormData] = useState({
         id: null,
         groupId: '',
@@ -28,8 +28,11 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
     // Locations for dropdown - wrapped in useMemo to avoid dependency changes
     const locations = useMemo(() => ['Room A101', 'Room B205', 'Room C310', 'Conference Hall', 'Online', 'Other'], []);
 
-    // Status options
-    const statusOptions = ['Scheduled', 'Completed', 'Cancelled'];
+    // Define status options
+    const statusOptions = useMemo(() => ['Scheduled', 'Completed', 'Cancelled'], []);
+
+    // Determine if this is a new presentation (no id) or an existing one
+    const isNewPresentation = !initialValues.id && !initialValues._id;
 
     // Fetch examiners when component mounts
     useEffect(() => {
@@ -71,6 +74,32 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
             }
         }
     }, [editingPresentation, locations]);
+
+    // Update form data when initialValues changes
+    useEffect(() => {
+        if (initialValues && Object.keys(initialValues).length > 0) {
+            console.log("Setting form data from initialValues:", initialValues);
+            setFormData(prev => ({
+                ...prev,
+                ...initialValues,
+                // Ensure status is properly capitalized
+                status: initialValues.status ? 
+                    initialValues.status.charAt(0).toUpperCase() + initialValues.status.slice(1).toLowerCase() : 
+                    'Scheduled'
+            }));
+
+            // Check if location is in the predefined list or custom
+            if (initialValues.location && !locations.includes(initialValues.location)) {
+                setFormData(prev => ({
+                    ...prev,
+                    ...initialValues,
+                    customLocation: initialValues.location,
+                    location: 'Other'
+                }));
+                setShowCustomLocation(true);
+            }
+        }
+    }, [initialValues, locations]);
 
     // Handle input changes
     const handleChange = (e) => {
@@ -519,13 +548,17 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                         </label>
                         <div className="flex gap-4">
                             {statusOptions.map(status => (
-                                <label key={status} className="inline-flex items-center">
+                                <label 
+                                    key={status} 
+                                    className={`inline-flex items-center ${isNewPresentation && status !== 'Scheduled' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
                                     <input
                                         type="radio"
                                         name="status"
                                         value={status}
                                         checked={formData.status === status}
                                         onChange={handleChange}
+                                        disabled={isNewPresentation && status !== 'Scheduled'}
                                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                                     />
                                     <span className="ml-2 text-sm text-gray-700">{status}</span>
