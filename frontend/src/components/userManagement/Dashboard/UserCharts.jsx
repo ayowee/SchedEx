@@ -1,7 +1,7 @@
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export default function UserCharts({ userTypeData }) {
-    // userTypeData: [{ type, value, color }], monthlyData: [{ month, value }]
+    // userTypeData: [{ type, value, color }], monthlyData: [{ month, value }] Change
     return (
         <div className="mb-8 lg:w-1/2">
             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 h-full">
