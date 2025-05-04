@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
+import { userService } from '../../services/api';
 
-const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, isLoading }) => {
+const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, isLoading, initialValues }) => {
     const [formData, setFormData] = useState({
         id: null,
         groupId: '',
@@ -21,12 +22,36 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
     const [errors, setErrors] = useState({});
     const [confirmDelete, setConfirmDelete] = useState(false);
     const [showCustomLocation, setShowCustomLocation] = useState(false);
+    const [examiners, setExaminers] = useState([]);
+    const [isLoadingExaminers, setIsLoadingExaminers] = useState(false);
 
     // Locations for dropdown - wrapped in useMemo to avoid dependency changes
     const locations = useMemo(() => ['Room A101', 'Room B205', 'Room C310', 'Conference Hall', 'Online', 'Other'], []);
 
-    // Status options
-    const statusOptions = ['Scheduled', 'Completed', 'Cancelled'];
+    // Define status options
+    const statusOptions = useMemo(() => ['Scheduled', 'Completed', 'Cancelled'], []);
+
+    // Determine if this is a new presentation (no id) or an existing one
+    const isNewPresentation = !initialValues.id && !initialValues._id;
+
+    // Fetch examiners when component mounts
+    useEffect(() => {
+        const fetchExaminers = async () => {
+            setIsLoadingExaminers(true);
+            try {
+                const examinerData = await userService.getAllExaminers();
+                console.log('Fetched examiners:', examinerData);
+                setExaminers(examinerData);
+            } catch (error) {
+                console.error('Error fetching examiners:', error);
+                toast.error('Failed to load examiners. Please try again.');
+            } finally {
+                setIsLoadingExaminers(false);
+            }
+        };
+
+        fetchExaminers();
+    }, []);
 
     // Update form data when editingPresentation changes
     useEffect(() => {
@@ -50,9 +75,65 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
         }
     }, [editingPresentation, locations]);
 
+    // Update form data when initialValues changes
+    useEffect(() => {
+        if (initialValues && Object.keys(initialValues).length > 0) {
+            console.log("Setting form data from initialValues:", initialValues);
+            setFormData(prev => ({
+                ...prev,
+                ...initialValues,
+                // Ensure status is properly capitalized
+                status: initialValues.status ? 
+                    initialValues.status.charAt(0).toUpperCase() + initialValues.status.slice(1).toLowerCase() : 
+                    'Scheduled'
+            }));
+
+            // Check if location is in the predefined list or custom
+            if (initialValues.location && !locations.includes(initialValues.location)) {
+                setFormData(prev => ({
+                    ...prev,
+                    ...initialValues,
+                    customLocation: initialValues.location,
+                    location: 'Other'
+                }));
+                setShowCustomLocation(true);
+            }
+        }
+    }, [initialValues, locations]);
+
     // Handle input changes
     const handleChange = (e) => {
         const { name, value } = e.target;
+        
+        // If examiner selection changed, auto-fill the email
+        if (name === 'examinerId' && value) {
+            const selectedExaminer = examiners.find(examiner => examiner._id === value);
+            if (selectedExaminer) {
+                setFormData({
+                    ...formData,
+                    examinerId: selectedExaminer._id,
+                    examinerName: selectedExaminer.fullName,
+                    examinerEmail: selectedExaminer.email,
+                });
+                
+                // Clear errors for examiner fields
+                setErrors(prev => ({
+                    ...prev,
+                    examinerId: '',
+                    examinerName: '',
+                    examinerEmail: ''
+                }));
+                return;
+            }
+        }
+        
+        // If location is 'Other', show custom location field
+        if (name === 'location' && value === 'Other') {
+            setShowCustomLocation(true);
+        } else if (name === 'location') {
+            setShowCustomLocation(false);
+        }
+        
         setFormData({
             ...formData,
             [name]: value
@@ -201,7 +282,7 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
             durationValid && subjectNameValid && customLocationValid;
     };
 
-    // Handle form submissionF
+    // Handle form submission
     const handleSubmit = (e) => {
         e.preventDefault();
 
@@ -252,88 +333,60 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                         <label htmlFor="groupId" className="block text-sm font-medium text-gray-700 mb-1">
                             Group ID
                         </label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                id="groupId"
-                                name="groupId"
-                                value={formData.groupId}
-                                onChange={handleChange}
-                                className={`w-full px-4 py-2.5 rounded-md border ${errors.groupId ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
-                                placeholder="Enter group ID"
-                            />
-                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                {errors.groupId ? (
-                                    <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                    </svg>
-                                ) : (
-                                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                )}
-                            </div>
-                        </div>
+                        <input
+                            type="text"
+                            id="groupId"
+                            name="groupId"
+                            value={formData.groupId}
+                            onChange={handleChange}
+                            className={`w-full px-4 py-2.5 rounded-md border ${errors.groupId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'} shadow-sm`}
+                            placeholder="Enter group ID"
+                        />
                         {errors.groupId && <p className="mt-1 text-sm text-red-600">{errors.groupId}</p>}
                     </div>
 
-                    {/* Examiner Name */}
+                    {/* Examiner */}
                     <div>
-                        <label htmlFor="examinerName" className="block text-sm font-medium text-gray-700 mb-1">
-                            Examiner Name
+                        <label htmlFor="examinerId" className="block text-sm font-medium text-gray-700 mb-1">
+                            Examiner
                         </label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                id="examinerName"
-                                name="examinerName"
-                                value={formData.examinerName}
-                                onChange={handleChange}
-                                className={`w-full px-4 py-2.5 rounded-md border ${errors.examinerName ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
-                                placeholder="Enter examiner name"
-                            />
-                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                {errors.examinerName ? (
-                                    <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                    </svg>
-                                ) : (
-                                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                )}
-                            </div>
-                        </div>
-                        {errors.examinerName && <p className="mt-1 text-sm text-red-600">{errors.examinerName}</p>}
+                        <select
+                            id="examinerId"
+                            name="examinerId"
+                            value={formData.examinerId}
+                            onChange={handleChange}
+                            className={`w-full px-4 py-2.5 rounded-md border ${errors.examinerId ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'} shadow-sm`}
+                        >
+                            <option value="">Select examiner</option>
+                            {isLoadingExaminers ? (
+                                <option disabled>Loading examiners...</option>
+                            ) : examiners.length > 0 ? (
+                                examiners.map(examiner => (
+                                    <option key={examiner._id} value={examiner._id}>
+                                        {examiner.fullName}
+                                    </option>
+                                ))
+                            ) : (
+                                <option disabled>No examiners found</option>
+                            )}
+                        </select>
+                        {errors.examinerId && <p className="mt-1 text-sm text-red-600">{errors.examinerId}</p>}
                     </div>
 
-                    {/* Examiner Email */}
+                    {/* Examiner Email - Auto-filled and read-only */}
                     <div>
                         <label htmlFor="examinerEmail" className="block text-sm font-medium text-gray-700 mb-1">
                             Examiner Email
                         </label>
-                        <div className="relative">
-                            <input
-                                type="email"
-                                id="examinerEmail"
-                                name="examinerEmail"
-                                value={formData.examinerEmail}
-                                onChange={handleChange}
-                                className={`w-full px-4 py-2.5 rounded-md border ${errors.examinerEmail ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
-                                placeholder="Enter examiner email"
-                            />
-                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                {errors.examinerEmail ? (
-                                    <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                    </svg>
-                                ) : (
-                                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                )}
-                            </div>
-                        </div>
+                        <input
+                            type="email"
+                            id="examinerEmail"
+                            name="examinerEmail"
+                            value={formData.examinerEmail}
+                            readOnly
+                            className="w-full px-4 py-2.5 rounded-md border border-gray-300 bg-gray-50 shadow-sm"
+                            placeholder="Email will be auto-filled"
+                        />
                         {errors.examinerEmail && <p className="mt-1 text-sm text-red-600">{errors.examinerEmail}</p>}
                     </div>
 
@@ -342,28 +395,15 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                         <label htmlFor="subjectName" className="block text-sm font-medium text-gray-700 mb-1">
                             Subject Name
                         </label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                id="subjectName"
-                                name="subjectName"
-                                value={formData.subjectName}
-                                onChange={handleChange}
-                                className={`w-full px-4 py-2.5 rounded-md border ${errors.subjectName ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
-                                placeholder="Enter subject name"
-                            />
-                            <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-                                {errors.subjectName ? (
-                                    <svg className="h-5 w-5 text-red-500" fill="currentColor" viewBox="0 0 20 20">
-                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                    </svg>
-                                ) : (
-                                    <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-                                        <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
-                                    </svg>
-                                )}
-                            </div>
-                        </div>
+                        <input
+                            type="text"
+                            id="subjectName"
+                            name="subjectName"
+                            value={formData.subjectName}
+                            onChange={handleChange}
+                            className={`w-full px-4 py-2.5 rounded-md border ${errors.subjectName ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'} shadow-sm`}
+                            placeholder="Enter subject name"
+                        />
                         {errors.subjectName && <p className="mt-1 text-sm text-red-600">{errors.subjectName}</p>}
                     </div>
                 </div>
@@ -383,7 +423,7 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                                     name="date"
                                     value={formData.date}
                                     onChange={handleChange}
-                                    className={`w-full pl-10 pr-4 py-2.5 rounded-md border ${errors.date ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none`}
+                                    className={`w-full pl-10 pr-4 py-2.5 rounded-md border ${errors.date ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'} shadow-sm cursor-pointer appearance-none`}
                                     style={{ colorScheme: 'light' }}
                                 />
                                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -405,7 +445,7 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                                     name="time"
                                     value={formData.time}
                                     onChange={handleChange}
-                                    className={`w-full pl-10 pr-4 py-2.5 rounded-md border ${errors.time ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500 cursor-pointer appearance-none`}
+                                    className={`w-full pl-10 pr-4 py-2.5 rounded-md border ${errors.time ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'} shadow-sm cursor-pointer appearance-none`}
                                     style={{ colorScheme: 'light' }}
                                 />
                                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
@@ -433,7 +473,7 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                                     onChange={handleChange}
                                     min="5"
                                     step="5"
-                                    className={`w-full px-4 py-2.5 rounded-md border ${errors.duration ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500`}
+                                    className={`w-full px-4 py-2.5 rounded-md border ${errors.duration ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'} shadow-sm`}
                                 />
                             </div>
                             {errors.duration && <p className="mt-1 text-sm text-red-600">{errors.duration}</p>}
@@ -455,7 +495,7 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                                             setShowCustomLocation(false);
                                         }
                                     }}
-                                    className={`w-full px-4 py-2.5 rounded-md border ${errors.location ? 'border-red-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500 appearance-none`}
+                                    className={`w-full px-4 py-2.5 rounded-md border ${errors.location ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'} shadow-sm appearance-none`}
                                 >
                                     <option value="">Select location</option>
                                     {locations.map(loc => (
@@ -480,7 +520,7 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                                             name="customLocation"
                                             value={formData.customLocation || ''}
                                             onChange={handleChange}
-                                            className={`w-full px-4 py-2.5 rounded-md border ${errors.customLocation ? 'border-red-500' : formData.customLocation ? 'border-green-500' : 'border-gray-300'} shadow-sm focus:ring-blue-500 focus:border-blue-500 bg-blue-50`}
+                                            className={`w-full px-4 py-2.5 rounded-md border ${errors.customLocation ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : formData.customLocation ? 'border-green-500 focus:ring-green-500 focus:border-green-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'} shadow-sm bg-blue-50`}
                                             placeholder="Enter custom location"
                                         />
                                         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
@@ -508,13 +548,17 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                         </label>
                         <div className="flex gap-4">
                             {statusOptions.map(status => (
-                                <label key={status} className="inline-flex items-center">
+                                <label 
+                                    key={status} 
+                                    className={`inline-flex items-center ${isNewPresentation && status !== 'Scheduled' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                >
                                     <input
                                         type="radio"
                                         name="status"
                                         value={status}
                                         checked={formData.status === status}
                                         onChange={handleChange}
+                                        disabled={isNewPresentation && status !== 'Scheduled'}
                                         className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
                                     />
                                     <span className="ml-2 text-sm text-gray-700">{status}</span>
