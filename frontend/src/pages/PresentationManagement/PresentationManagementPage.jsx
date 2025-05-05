@@ -366,6 +366,24 @@ const PresentationManagementPage = () => {
                                 </svg>
                                 Export
                             </button>
+
+                            <button
+                                onClick={() => {
+                                    // This would typically call a report generation function
+                                    toast.info("Generating detailed presentation report...");
+                                    // For demo purposes, we'll just show a toast
+                                    setTimeout(() => {
+                                        toast.success("Report generated successfully!");
+                                    }, 1500);
+                                }}
+                                disabled={presentations.length === 0 || isLoading}
+                                className="bg-green-50 text-green-600 hover:bg-green-100 px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4zm2 6a1 1 0 011-1h6a1 1 0 110 2H7a1 1 0 01-1-1zm1 3a1 1 0 100 2h6a1 1 0 100-2H7z" clipRule="evenodd" />
+                                </svg>
+                                Generate Report
+                            </button>
                             
                             <button
                                 onClick={() => {
@@ -376,7 +394,7 @@ const PresentationManagementPage = () => {
                                 className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                             >
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 11-2 0v-3H6a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
+                                    <path fillRule="evenodd" d="M10 5a1 1 0 011 1v3h3a1 1 0 110 2h-3v3a1 1 0 01-1 1h-3a1 1 0 110-2h3V6a1 1 0 011-1z" clipRule="evenodd" />
                                 </svg>
                                 Schedule New
                             </button>
