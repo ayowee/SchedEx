@@ -384,7 +384,7 @@ const Calendar = () => {
     const handleDateClick = (info) => {
         const clickedDate = info.date;
         
-        // Format date for the form
+        // Format date for the form (YYYY-MM-DD)
         const formattedDate = clickedDate.toISOString().split('T')[0];
         
         // Get current time (rounded to nearest 15 minutes)
@@ -397,7 +397,8 @@ const Calendar = () => {
         // Format time as HH:MM
         const formattedTime = `${String(adjustedHours).padStart(2, '0')}:${String(adjustedMinutes).padStart(2, '0')}`;
         
-        setSelectedPresentation({
+        // Create new presentation data with the selected date
+        const newPresentation = {
             id: null,
             groupId: "",
             examinerId: "",
@@ -410,8 +411,10 @@ const Calendar = () => {
             subjectName: "",
             description: "",
             status: "Scheduled" // Default status for new presentations
-        });
+        };
         
+        console.log("Setting selected presentation with date:", formattedDate);
+        setSelectedPresentation(newPresentation);
         setIsModalOpen(true);
     };
 

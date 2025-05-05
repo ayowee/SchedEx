@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { toast } from 'react-toastify';
 import { userService } from '../../services/api';
 
-const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, isLoading, initialValues }) => {
+const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, isLoading, initialValues = {} }) => {
     const [formData, setFormData] = useState({
         id: null,
         groupId: '',
@@ -32,7 +32,7 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
     const statusOptions = useMemo(() => ['Scheduled', 'Completed', 'Cancelled'], []);
 
     // Determine if this is a new presentation (no id) or an existing one
-    const isNewPresentation = !initialValues.id && !initialValues._id;
+    const isNewPresentation = !(initialValues?.id || initialValues?._id);
 
     // Fetch examiners when component mounts
     useEffect(() => {
@@ -79,27 +79,33 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
     useEffect(() => {
         if (initialValues && Object.keys(initialValues).length > 0) {
             console.log("Setting form data from initialValues:", initialValues);
-            setFormData(prev => ({
-                ...prev,
+            
+            // Clone initialValues to avoid reference issues
+            const updatedData = {
+                ...formData,
                 ...initialValues,
                 // Ensure status is properly capitalized
                 status: initialValues.status ? 
                     initialValues.status.charAt(0).toUpperCase() + initialValues.status.slice(1).toLowerCase() : 
                     'Scheduled'
-            }));
+            };
+            
+            // Debugging output to check date format
+            console.log("Date format in form:", initialValues.date);
+            
+            setFormData(updatedData);
 
             // Check if location is in the predefined list or custom
             if (initialValues.location && !locations.includes(initialValues.location)) {
-                setFormData(prev => ({
-                    ...prev,
-                    ...initialValues,
+                setFormData({
+                    ...updatedData,
                     customLocation: initialValues.location,
                     location: 'Other'
-                }));
+                });
                 setShowCustomLocation(true);
             }
         }
-    }, [initialValues, locations]);
+    }, [initialValues, locations, formData]);
 
     // Handle input changes
     const handleChange = (e) => {
@@ -421,10 +427,11 @@ const PresentationForm = ({ editingPresentation, onSubmit, onCancel, onDelete, i
                                     type="date"
                                     id="date"
                                     name="date"
-                                    value={formData.date}
+                                    value={formData.date || ''}
                                     onChange={handleChange}
                                     className={`w-full pl-10 pr-4 py-2.5 rounded-md border ${errors.date ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : 'border-gray-300 focus:ring-blue-500 focus:border-blue-500'} shadow-sm cursor-pointer appearance-none`}
                                     style={{ colorScheme: 'light' }}
+                                    placeholder="mm/dd/yyyy"
                                 />
                                 <div className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
